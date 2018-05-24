@@ -1,0 +1,6 @@
+[submodule "QSlang"]
+	path = QSlang
+	url = git@github.com:ErikBjare/QSlang.git
+[submodule "facebook-me"]
+	path = facebook-me
+	url = git@github.com:ErikBjare/facebook-me.git

@@ -1,6 +1,9 @@
 [submodule "QSlang"]
 	path = QSlang
 	url = git@github.com:ErikBjare/QSlang.git
-[submodule "facebook-me"]
-	path = facebook-me
-	url = git@github.com:ErikBjare/facebook-me.git
+[submodule "chatalysis"]
+	path = chatalysis
+	url = git@github.com:ErikBjare/chatalysis.git
+[submodule "smartertime2activitywatch"]
+	path = smartertime2activitywatch
+	url = git@github.com:ErikBjare/smartertime2activitywatch.git

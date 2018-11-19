@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "bdef351074a75b95157d310fd2e76097b9c39bad7b71df15d0a595bc8a07593f"
+            "sha256": "fdbda6ae40d39eaed3e98427d364651da0fccf24f2ecf60629a15c12e4890615"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -29,6 +29,11 @@
                 "sha256:ca4be454458f9dec299268d472aaa5a11f67a4ff70093396e1ceae9c76cf4bbb"
             ],
             "version": "==18.2.0"
+        },
+        "calmap": {
+            "editable": true,
+            "git": "https://github.com/MarvinT/calmap.git",
+            "ref": "b60250608f042a1c37724ad1396b386a27d06875"
         },
         "cycler": {
             "hashes": [

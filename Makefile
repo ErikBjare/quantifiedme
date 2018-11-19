@@ -1,3 +1,5 @@
+dashboard:
+	pipenv run python3 build_dashboard.py
 
 test:
 	pipenv run python3 -m pytest scripts/habitbull.py

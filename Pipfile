@@ -7,6 +7,7 @@ name = "pypi"
 pandas = "*"
 matplotlib = "*"
 pytest = "*"
+calmap = {editable = true, git = "https://github.com/MarvinT/calmap.git"}
 
 [dev-packages]
 

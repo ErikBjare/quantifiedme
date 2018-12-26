@@ -11,11 +11,13 @@ def read_csv(filename):
     return df
 
 
-def plot_calendar(df, habitname, show=True):
+def plot_calendar(df, habitname, show=True, year=None):
     df = df[df.index.get_level_values('HabitName').isin([habitname])].reset_index()
     df = df.set_index(pd.DatetimeIndex(df['CalendarDate']))
-    print(df['Value'])
-    calmap.calendarplot(df['Value'])
+    if year:
+        calmap.yearplot(df['Value'], year=year)
+    else:
+        calmap.calendarplot(df['Value'])
     if show:
         plt.show()
 
@@ -34,8 +36,5 @@ def test_plot_calendar():
 
 if __name__ == "__main__":
     df = read_csv('data/habitbulldata.csv')
-    print(df.columns)
-    print(df[['Value', 'CommentText']].tail(20))
-    plot_calendar(df, "Socialized")
-
-
+    del df['HabitDescription']
+    del df['HabitCategory']

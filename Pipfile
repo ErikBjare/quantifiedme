@@ -7,9 +7,21 @@ name = "pypi"
 pandas = "*"
 matplotlib = "*"
 pytest = "*"
-calmap = {editable = true, git = "https://github.com/MarvinT/calmap.git"}
+calmap = {editable = true,git = "https://github.com/MarvinT/calmap.git"}
+joblib = "*"
+jupyter = "*"
+ipykernel = "*"
+aw-research = {editable = true,file = "file:///home/erb/Programming/activitywatch/other/aw-research"}
+qslang = {editable = true,file = "file:///home/erb/Programming/quantifiedme/QSlang"}
+tabulate = "*"
+togglcli = {editable = true,git = "ssh://git@github.com/AuHau/toggl-cli.git"}
+pint = "*"
+toml = "*"
 
 [dev-packages]
 
 [requires]
 python_version = "3.7"
+
+[pipenv]
+allow_prereleases = true

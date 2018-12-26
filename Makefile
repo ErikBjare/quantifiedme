@@ -7,3 +7,9 @@ test:
 	make --directory=QSlang test
 	make --directory=chatalysis test
 
+
+
+jupyter:
+	# From: https://stackoverflow.com/a/47296960/965332
+	pipenv install --skip-lock ipykernel
+	pipenv run bash -c 'python -m ipykernel install --user --name=`basename $$VIRTUAL_ENV`'

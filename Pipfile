@@ -18,7 +18,8 @@ togglcli = {editable = true,git = "ssh://git@github.com/AuHau/toggl-cli.git"}
 pint = "*"
 toml = "*"
 statsmodels = "*"
-scipy = "*"
+scipy = "==1.2.1"
+numpy = "*"
 
 [dev-packages]
 

@@ -17,6 +17,8 @@ tabulate = "*"
 togglcli = {editable = true,git = "ssh://git@github.com/AuHau/toggl-cli.git"}
 pint = "*"
 toml = "*"
+statsmodels = "*"
+scipy = "*"
 
 [dev-packages]
 

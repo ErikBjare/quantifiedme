@@ -11,8 +11,8 @@ calmap = {editable = true,git = "https://github.com/MarvinT/calmap.git"}
 joblib = "*"
 jupyter = "*"
 ipykernel = "*"
-aw-research = {editable = true,file = "file:///home/erb/Programming/activitywatch/other/aw-research"}
-qslang = {editable = true,file = "file:///home/erb/Programming/quantifiedme/QSlang"}
+aw-research = {editable = true,file = "./aw-research"}
+qslang = {editable = true,file = "./QSlang"}
 tabulate = "*"
 togglcli = {editable = true,git = "ssh://git@github.com/AuHau/toggl-cli.git"}
 pint = "*"

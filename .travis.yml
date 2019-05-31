@@ -1,0 +1,12 @@
+language: python
+python:
+ - "3.6"
+
+install:
+ - pip install pipenv
+ - pipenv install
+
+script:
+ - sed -i 's/personal = True/personal = False/' 'QuantifiedMe\ - Dashboard.ipynb'  # Set personal = False, in case it was accidentally comitted with `personal = True`
+ - pipenv run jupyter nbconvert --execute 'QuantifiedMe - Dashboard.ipynb'
+ - ls -l *.html

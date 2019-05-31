@@ -10,3 +10,6 @@
 [submodule "mifit-data-export"]
 	path = vendor/mifit-data-export
 	url = https://github.com/Dolnor/mifit-data-export.git
+[submodule "aw-research"]
+	path = aw-research
+	url = https://github.com/ActivityWatch/aw-research.git

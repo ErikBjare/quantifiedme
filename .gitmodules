@@ -1,12 +1,12 @@
 [submodule "QSlang"]
 	path = QSlang
-	url = git@github.com:ErikBjare/QSlang.git
+	url = https://github.com/ErikBjare/QSlang.git
 [submodule "chatalysis"]
 	path = chatalysis
-	url = git@github.com:ErikBjare/chatalysis.git
+	url = https://github.com/ErikBjare/chatalysis.git
 [submodule "smartertime2activitywatch"]
 	path = smartertime2activitywatch
-	url = git@github.com:ErikBjare/smartertime2activitywatch.git
+	url = https://github.com/ErikBjare/smartertime2activitywatch.git
 [submodule "mifit-data-export"]
 	path = vendor/mifit-data-export
-	url = git@github.com:Dolnor/mifit-data-export.git
+	url = https://github.com/Dolnor/mifit-data-export.git

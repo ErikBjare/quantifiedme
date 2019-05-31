@@ -4,6 +4,7 @@ python:
 
 install:
  - pip install pipenv
+ - cd aw-research && pipenv install && cd ..  # this will install aw-core, aw-client, and other quantifiedme/aw-research dependencies
  - pipenv install
 
 script:

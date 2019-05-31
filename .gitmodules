@@ -7,3 +7,6 @@
 [submodule "smartertime2activitywatch"]
 	path = smartertime2activitywatch
 	url = git@github.com:ErikBjare/smartertime2activitywatch.git
+[submodule "mifit-data-export"]
+	path = vendor/mifit-data-export
+	url = git@github.com:Dolnor/mifit-data-export.git

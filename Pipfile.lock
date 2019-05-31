@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "eecce293d2d3572bee26c3710a2b3bd81ae9eda1675e3991e3760c1e62b3d3f7"
+            "sha256": "b58c0490bfaa40d6784f9b994ea669c10f49b5e318e1d7083f8637d2d2d79f28"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -798,7 +798,7 @@
         },
         "togglcli": {
             "editable": true,
-            "git": "ssh://git@github.com/AuHau/toggl-cli.git",
+            "git": "https://github.com/AuHau/toggl-cli.git",
             "ref": "432b04d46882772fbfe4a80f7af15991feae7195"
         },
         "toml": {

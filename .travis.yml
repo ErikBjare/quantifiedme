@@ -11,3 +11,4 @@ script:
  - sed -i 's/personal = True/personal = False/' 'QuantifiedMe - Dashboard.ipynb'  # Set personal = False, in case it was accidentally comitted with `personal = True`
  - pipenv run jupyter nbconvert 'QuantifiedMe - Dashboard.ipynb' --execute --ExecutePreprocessor.kernel_name=python3
  - ls -l *.html
+ - sha256sum *.html

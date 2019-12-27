@@ -4,27 +4,24 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+numpy = "*"
+scipy = "==1.2.1"
 pandas = "*"
 matplotlib = "*"
-pytest = "*"
+statsmodels = "*"
 calmap = {editable = true,git = "https://github.com/MarvinT/calmap.git"}
 joblib = "*"
-jupyter = "*"
-ipykernel = "*"
 aw-research = {editable = true,file = "./aw-research"}
 qslang = {editable = true,file = "./QSlang"}
 tabulate = "*"
-togglcli = {editable = true,git = "https://github.com/AuHau/toggl-cli.git"}
+#togglcli = {editable = true,git = "https://github.com/AuHau/toggl-cli.git"}
 pint = "*"
 toml = "*"
-statsmodels = "*"
-scipy = "==1.2.1"
-numpy = "*"
 
 [dev-packages]
-
-[requires]
-python_version = "3.7"
-
-[pipenv]
-allow_prereleases = true
+jupyter = "*"
+ipykernel = "*"
+pytest = "*"
+flake8 = "*"
+mypy = "*"
+jupyterlab = "*"

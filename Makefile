@@ -1,5 +1,5 @@
 dashboard:
-	pipenv run python3 build_dashboard.py
+	pipenv run python3 dashboard/build_dashboard.py
 
 install:
 	pipenv install

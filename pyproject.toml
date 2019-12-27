@@ -19,8 +19,8 @@ tabulate = "^0.8.6"
 pint = "^0.9"
 toml = "^0.10.0"
 pytz = "^2019.3"
-aw_core = {path = "../activitywatch/aw-core"}
-aw_client = {path = "../activitywatch/aw-client"}
+aw_core = {git = "https://github.com/ActivityWatch/aw-core.git"}
+aw_client = {git = "https://github.com/ActivityWatch/aw-client.git"}
 
 [tool.poetry.dev-dependencies]
 jupyter = "^1.0.0"

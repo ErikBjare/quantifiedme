@@ -69,7 +69,6 @@ tests = ["coverage", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "zope.i
 [[package]]
 category = "main"
 description = "Client library for ActivityWatch"
-develop = true
 name = "aw-client"
 optional = false
 python-versions = "*"
@@ -81,14 +80,12 @@ persist-queue = "*"
 requests = "*"
 
 [package.source]
-reference = ""
-type = "directory"
-url = "../activitywatch/aw-client"
-
+reference = "b7e0cd4dd2931f9d5bad5cfbc4837ca74b645e32"
+type = "git"
+url = "https://github.com/ActivityWatch/aw-client.git"
 [[package]]
 category = "main"
 description = "Core library for ActivityWatch"
-develop = true
 name = "aw-core"
 optional = false
 python-versions = "*"
@@ -110,10 +107,9 @@ takethetime = "0.3.1"
 zipp = "0.6.0"
 
 [package.source]
-reference = ""
-type = "directory"
-url = "../activitywatch/aw-core"
-
+reference = "f6bcbd9551da124b76b478fe24bcb3a657d3789b"
+type = "git"
+url = "https://github.com/ActivityWatch/aw-core.git"
 [[package]]
 category = "main"
 description = "Research tools for ActivityWatch data"
@@ -884,7 +880,7 @@ description = "library with cross-python path, ini-parsing, io, code, log facili
 name = "py"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-version = "1.8.0"
+version = "1.8.1"
 
 [[package]]
 category = "main"
@@ -1286,7 +1282,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["pathlib2", "contextlib2", "unittest2"]
 
 [metadata]
-content-hash = "140e046b8ceb88908aac2b0c397a0b91e799e45dbdbac672fafc7c66e57dcec0"
+content-hash = "72c030727d79426f192a1aa1e8e229ed57bd71cd22657af6fc2d54f2ac82e83e"
 python-versions = "^3.8"
 
 [metadata.files]
@@ -1680,8 +1676,8 @@ ptyprocess = [
     {file = "ptyprocess-0.6.0.tar.gz", hash = "sha256:923f299cc5ad920c68f2bc0bc98b75b9f838b93b599941a6b63ddbc2476394c0"},
 ]
 py = [
-    {file = "py-1.8.0-py2.py3-none-any.whl", hash = "sha256:64f65755aee5b381cea27766a3a147c3f15b9b6b9ac88676de66ba2ae36793fa"},
-    {file = "py-1.8.0.tar.gz", hash = "sha256:dc639b046a6e2cff5bbe40194ad65936d6ba360b52b3c3fe1d08a82dd50b5e53"},
+    {file = "py-1.8.1-py2.py3-none-any.whl", hash = "sha256:c20fdd83a5dbc0af9efd622bee9a5564e278f6380fffcacc43ba6f43db2813b0"},
+    {file = "py-1.8.1.tar.gz", hash = "sha256:5e27081401262157467ad6e7f851b7aa402c5852dbcb3dae06768434de5752aa"},
 ]
 pyasn1 = [
     {file = "pyasn1-0.4.8-py2.4.egg", hash = "sha256:fec3e9d8e36808a28efb59b489e4528c10ad0f480e57dcc32b4de5c9d8c9fdf3"},

@@ -55,7 +55,7 @@ def colocate(df_person1, df_person2, verbose=False):
 
     df_close = df[df['dist'] < 0.01].copy()
     df_close['duration'] = df.index.freq.nanos / 3600e9  # Normalize to hours
-    df_close = df_close.resample('1D').apply({'duration': np.sum})
+    df_close = df_close.resample('24H').apply({'duration': np.sum})
     df_close = df_close['duration']
     # print(df_close)
     if verbose:
@@ -70,7 +70,7 @@ def _proximity_to_location(df: pd.DataFrame, loc: Tuple[float, float], threshold
     dist = dist[dist < threshold_radius]
     dist = pd.DataFrame(dist, columns=['dist'])
     dist['duration'] = 10 / 60
-    dist = dist.resample('1D').apply({'duration': np.sum})
+    dist = dist.resample('24H').apply({'duration': np.sum})
     if verbose:
         print(dist)
     return dist['duration']
@@ -95,7 +95,10 @@ def plot_df_duration(df, title, save: str = None):
 
 def main_plot(dfs, me, other, start=None, save=None):
     coords = {
+        "kamnars": (55.722030, 13.217581, 0.001),
+        "baravagen": (55.717222, 13.194150, 0.001),
         "actic": (55.722379, 13.213125, 0.001),
+        "victoria": (55.7189, 13.2008, 0.001),
         "lund": (55.705377, 13.192200, 0.05),
         "lth": (55.711264, 13.209850, 0.005),
     }

@@ -3,6 +3,7 @@ import glob
 import argparse
 from typing import Tuple
 from datetime import datetime
+from pathlib import Path
 
 import click
 from matplotlib import pyplot as plt
@@ -33,9 +34,10 @@ def location_history_to_df(fn):
 @memory.cache
 def load_all_dfs():
     dfs = {}
-    for fn in glob.glob("data/location/*.json"):
-        name = fn.replace("data/location/", '').replace(".json", '')
-        df = location_history_to_df(fn)
+    path = load_config()['data']['location']
+    for filepath in glob.glob(path + "/*.json"):
+        name = Path(filepath).name.replace(".json", '')
+        df = location_history_to_df(filepath)
         dfs[name] = df
     return dfs
 

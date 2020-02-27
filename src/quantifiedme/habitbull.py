@@ -3,6 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import calmap
 
+from .config import load_config
+
 
 def read_csv(filename):
     df = pd.read_csv(filename, parse_dates=True)
@@ -37,7 +39,8 @@ def test_plot_calendar():
 @click.argument('habitname', required=False)
 @click.option('--year', default=None, type=int)
 def habits(habitname: str = None, year: int = None):
-    df = read_csv('data/habitbulldata.csv')
+    filename = load_config()["data"]["habitbull"]
+    df = read_csv(filename)
     del df['HabitDescription']
     del df['HabitCategory']
     if habitname:
@@ -45,7 +48,7 @@ def habits(habitname: str = None, year: int = None):
     else:
         print("Habits:")
         for habit in list(set(df.index.get_level_values(1))):
-            print(f"  {habit}")
+            print(f" - {habit}")
         print("Specify a habit to plot it.")
 
 

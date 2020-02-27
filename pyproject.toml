@@ -4,6 +4,10 @@ version = "0.1.0"
 description = ""
 authors = ["Erik Bjäreholt <erik@bjareho.lt>"]
 license = "MPL-2.0"
+packages = [
+    { include = "quantifiedme", from = "src" },
+]
+
 
 [tool.poetry.dependencies]
 python = "^3.8"
@@ -13,8 +17,8 @@ pandas = "^0.25.3"
 matplotlib = "^3.1.2"
 calmap = "^0.0.7"
 joblib = "^0.14.1"
-qslang = {path = "QSlang"}
-aw-research = {path = "aw-research"}
+qslang = {path = "QSlang", develop=true}
+aw-research = {path = "aw-research", develop=true}
 tabulate = "^0.8.6"
 pint = "^0.9"
 toml = "^0.10.0"

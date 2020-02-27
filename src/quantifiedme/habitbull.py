@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-
+import click
 import pandas as pd
 import matplotlib.pyplot as plt
 import calmap
@@ -34,7 +33,21 @@ def test_plot_calendar():
     plot_calendar(df, "Socialized", show=False)
 
 
-if __name__ == "__main__":
+@click.command()
+@click.argument('habitname', required=False)
+@click.option('--year', default=None, type=int)
+def habits(habitname: str = None, year: int = None):
     df = read_csv('data/habitbulldata.csv')
     del df['HabitDescription']
     del df['HabitCategory']
+    if habitname:
+        plot_calendar(df, habitname, year=year)
+    else:
+        print("Habits:")
+        for habit in list(set(df.index.get_level_values(1))):
+            print(f"  {habit}")
+        print("Specify a habit to plot it.")
+
+
+if __name__ == "__main__":
+    habits()

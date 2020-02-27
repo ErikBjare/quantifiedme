@@ -4,10 +4,13 @@ import argparse
 from typing import Tuple
 from datetime import datetime
 
+import click
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import joblib
+
+from .config import load_config
 
 memory = joblib.Memory('.cache/joblib')
 
@@ -35,18 +38,6 @@ def load_all_dfs():
         df = location_history_to_df(fn)
         dfs[name] = df
     return dfs
-
-
-def _datetime_arg(s: str) -> datetime:
-    return datetime.strptime(s, "%Y-%m-%d")
-
-
-def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument('other')
-    parser.add_argument('--start', type=_datetime_arg)
-    parser.add_argument('--save')
-    return parser.parse_args()
 
 
 def colocate(df_person1, df_person2, verbose=False):
@@ -94,21 +85,15 @@ def plot_df_duration(df, title, save: str = None):
 
 
 def main_plot(dfs, me, other, start=None, save=None):
-    coords = {
-        "kamnars": (55.722030, 13.217581, 0.001),
-        "baravagen": (55.717222, 13.194150, 0.001),
-        "actic": (55.722379, 13.213125, 0.001),
-        "victoria": (55.7189, 13.2008, 0.001),
-        "lund": (55.705377, 13.192200, 0.05),
-        "lth": (55.711264, 13.209850, 0.005),
-    }
+    coords = load_config()['locations']
 
     df = dfs[me]
     if start:
         df = df[start < df.index]
 
     if other in coords:
-        df = _proximity_to_location(df, coords[other][:2], threshold_radius=coords[other][2])
+        loc = coords[other]
+        df = _proximity_to_location(df, (loc['lat'], loc['long']), threshold_radius=loc['accuracy'])
     else:
         # df = colocate(dfs[me], dfs[args.other], start=args.start)
         df_other = dfs[other]
@@ -119,19 +104,23 @@ def main_plot(dfs, me, other, start=None, save=None):
     plot_df_duration(df, other, save)
 
 
-def main():
-    args = _parse_args()
+@click.command()
+@click.argument('name')
+@click.option('--start', default=None, type=click.DateTime(), help='query from date')
+@click.option('--save', is_flag=True)
+def locate(name: str, start: datetime, save: bool):
+    # TODO: Pick up from config file
     me = "erik"
 
     dfs = load_all_dfs()
     # print(dfs[me])
     df = dfs[me]
 
-    if args.start:
-        df = df[args.start < df.index]
+    if start:
+        df = df[start < df.index]
 
-    main_plot(dfs, me, args.other)
+    main_plot(dfs, me, name)
 
 
 if __name__ == "__main__":
-    main()
+    locate()

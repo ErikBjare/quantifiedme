@@ -7,10 +7,7 @@ install:
 	poetry install
 
 test:
-	poetry run python3 -m pytest scripts/habitbull.py
-	#make --directory=smartertime2activitywatch test
-	make --directory=QSlang test
-	make --directory=chatalysis test
+	poetry run python3 -m pytest tests/
 
 build-notebooks:
 	sed -i 's/personal = True/personal = False/' 'QuantifiedMe - Dashboard.ipynb'  # Set personal = False, in case it was accidentally comitted with `personal = True`

@@ -27,14 +27,13 @@ def load_sleep_df():
 
 def load_activity_df():
     data = load_data()
-    print(data)
 
     df = pd.DataFrame(data['activity'])
-    print(df)
     df['summary_date'] = pd.to_datetime(df['summary_date'])
     df = df.set_index('summary_date')
 
     df['weekend'] = [1 if (d.weekday() + 1) % 7 >= 5 else 0 for d in df.index]
+    print(df)
 
     return df
 

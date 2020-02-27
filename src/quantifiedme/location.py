@@ -1,7 +1,6 @@
 import json
 import glob
-import argparse
-from typing import Tuple
+from typing import Tuple, Dict
 from datetime import datetime
 from pathlib import Path
 
@@ -32,7 +31,7 @@ def location_history_to_df(fn):
 
 
 @memory.cache
-def load_all_dfs():
+def load_all_dfs() -> Dict[str, pd.DataFrame]:
     dfs = {}
     path = load_config()['data']['location']
     for filepath in glob.glob(path + "/*.json"):
@@ -115,7 +114,6 @@ def locate(name: str, start: datetime, save: bool):
     me = "erik"
 
     dfs = load_all_dfs()
-    # print(dfs[me])
     df = dfs[me]
 
     if start:

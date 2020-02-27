@@ -55,7 +55,6 @@ requests = "^2.22.0"
 reference = "6846551b0c91ab37b79435a79e5b2a6bc34d3be6"
 type = "git"
 url = "https://github.com/ActivityWatch/aw-client.git"
-
 [[package]]
 category = "main"
 description = ""
@@ -80,14 +79,12 @@ mongo = ["pymongo (^3.10.0)"]
 reference = "f43bbf47d2f192e1d104babff94e2aa8f9f5f226"
 type = "git"
 url = "https://github.com/ActivityWatch/aw-core.git"
-
 [[package]]
 category = "main"
 description = ""
-develop = true
 name = "aw-research"
 optional = false
-python-versions = "^3.8"
+python-versions = "^3.6"
 version = "0.1.0"
 
 [package.dependencies]
@@ -103,10 +100,9 @@ pytz = "^2019.3"
 toml = "^0.10.0"
 
 [package.source]
-reference = ""
-type = "directory"
-url = "/home/erb/Programming/activitywatch/other/aw-research"
-
+reference = "3d8b70255ccb4c32dc5e3e6ecc3647079633a93e"
+type = "git"
+url = "https://github.com/ActivityWatch/aw-research.git"
 [[package]]
 category = "dev"
 description = "Specifications for callback functions passed in to an API"
@@ -1194,7 +1190,6 @@ validate_email = "1.3"
 reference = "7a21c71708cb88e2c4624416b48891ec25fc75f5"
 type = "git"
 url = "https://github.com/ErikBjare/toggl-cli.git"
-
 [[package]]
 category = "main"
 description = "Python Library for Tom's Obvious, Minimal Language"
@@ -1292,7 +1287,7 @@ version = "3.5.1"
 notebook = ">=4.4.1"
 
 [metadata]
-content-hash = "c5299c24813aa13160b1a885a245f543699c6a5cce8b0a907e0d0cb47d8d2a09"
+content-hash = "d6c6cf2475eb75d82504fe6573ff54203490117a07e46fbe58e24c094c3c92fa"
 python-versions = "^3.8"
 
 [metadata.files]

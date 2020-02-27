@@ -3,19 +3,18 @@ import click
 from .location import locate
 from .habitbull import habits
 from .activitywatch import activitywatch
+from .qslang import qslang
 from .oura import oura
 
 
 @click.group()
-def main():
+def quantifiedme():
     pass
 
 
-main.add_command(locate)
-main.add_command(habits)
-main.add_command(oura)
-main.add_command(activitywatch)
+for subcmd in [locate, habits, oura, activitywatch, qslang]:
+    quantifiedme.add_command(subcmd)
 
 
 if __name__ == '__main__':
-    main()
+    quantifiedme()

@@ -185,10 +185,12 @@ def classify(events: List[Event]) -> List[Event]:
     return events
 
 
-def load_category_df(events):
+def load_category_df(events: List[Event] = None):
     # TODO: Load entire timeline, categorize, return dataframe with how much time was spent in each category each day
+    if events is None:
+        events = load_complete_timeline(datetime.now(tz=timezone.utc) - timedelta(days=90))
+
     tss = {}
-    print(events[0])
     all_categories = list(set(t for e in events for t in e.data['$tags']))
     for cat in all_categories:
         try:

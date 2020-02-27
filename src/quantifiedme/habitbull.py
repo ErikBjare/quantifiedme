@@ -6,8 +6,11 @@ import calmap
 from .config import load_config
 
 
-def read_csv(filename):
+def load_df():
+    filename = load_config()["data"]["habitbull"]
     df = pd.read_csv(filename, parse_dates=True)
+    del df['HabitDescription']
+    del df['HabitCategory']
     df = df.set_index(['CalendarDate', 'HabitName']).sort_index()
     return df
 
@@ -23,26 +26,11 @@ def plot_calendar(df, habitname, show=True, year=None):
         plt.show()
 
 
-def test_read_csv():
-    df = read_csv('data/habitbulldata.csv')
-    print(df[['Value', 'CommentText']])
-    print(df.columns)
-    # assert 0
-
-
-def test_plot_calendar():
-    df = read_csv('data/habitbulldata.csv')
-    plot_calendar(df, "Socialized", show=False)
-
-
 @click.command()
 @click.argument('habitname', required=False)
 @click.option('--year', default=None, type=int)
 def habits(habitname: str = None, year: int = None):
-    filename = load_config()["data"]["habitbull"]
-    df = read_csv(filename)
-    del df['HabitDescription']
-    del df['HabitCategory']
+    df = load_df()
     if habitname:
         plot_calendar(df, habitname, year=year)
     else:

@@ -18,13 +18,16 @@ matplotlib = "^3.1.2"
 calmap = "^0.0.7"
 joblib = "^0.14.1"
 qslang = {path = "QSlang", develop=true}
-aw-research = {path = "aw-research", develop=true}
 tabulate = "^0.8.6"
 pint = "^0.9"
 toml = "^0.10.0"
 pytz = "^2019.3"
 aw_core = {git = "https://github.com/ActivityWatch/aw-core.git"}
 aw_client = {git = "https://github.com/ActivityWatch/aw-client.git"}
+#aw_research = {git = "https://github.com/ActivityWatch/aw-research.git"}
+aw_research = {path = "/home/erb/Programming/activitywatch/other/aw-research", develop=true}
+togglcli = {git = "https://github.com/ErikBjare/toggl-cli.git", rev = "patch-1"}
+statsmodels = "^0.11.1"
 
 [tool.poetry.dev-dependencies]
 jupyter = "^1.0.0"

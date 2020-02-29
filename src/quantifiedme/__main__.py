@@ -16,5 +16,5 @@ for subcmd in [locate, habits, oura, activitywatch, qslang]:
     quantifiedme.add_command(subcmd)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     quantifiedme()

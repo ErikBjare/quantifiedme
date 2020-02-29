@@ -7,7 +7,7 @@ def test_load_qslang():
     df = load_df()
     assert not df.empty
 
-    for tag in ['alcohol']:
+    for tag in ["alcohol"]:
         series = to_series(df, tag=tag)
         assert not series[series != 0].empty
 
@@ -18,17 +18,22 @@ def test_load_qslang():
 
 def test_load_activitywatch():
     from quantifiedme.activitywatch import load_complete_timeline, load_category_df
-    events = load_complete_timeline(datetime.now(tz=timezone.utc) - timedelta(days=90), datasources=["fake"])
+
+    events = load_complete_timeline(
+        datetime.now(tz=timezone.utc) - timedelta(days=90), datasources=["fake"]
+    )
     assert not load_category_df(events).empty
 
 
 def test_load_location():
     from quantifiedme.location import load_all_dfs
+
     assert load_all_dfs()
 
 
 def test_load_habitbull():
     from quantifiedme.habitbull import load_df
+
     assert not load_df().empty
 
 

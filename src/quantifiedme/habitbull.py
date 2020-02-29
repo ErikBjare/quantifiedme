@@ -9,26 +9,26 @@ from .config import load_config
 def load_df():
     filename = load_config()["data"]["habitbull"]
     df = pd.read_csv(filename, parse_dates=True)
-    del df['HabitDescription']
-    del df['HabitCategory']
-    df = df.set_index(['CalendarDate', 'HabitName']).sort_index()
+    del df["HabitDescription"]
+    del df["HabitCategory"]
+    df = df.set_index(["CalendarDate", "HabitName"]).sort_index()
     return df
 
 
 def plot_calendar(df, habitname, show=True, year=None):
-    df = df[df.index.get_level_values('HabitName').isin([habitname])].reset_index()
-    df = df.set_index(pd.DatetimeIndex(df['CalendarDate']))
+    df = df[df.index.get_level_values("HabitName").isin([habitname])].reset_index()
+    df = df.set_index(pd.DatetimeIndex(df["CalendarDate"]))
     if year:
-        calmap.yearplot(df['Value'], year=year)
+        calmap.yearplot(df["Value"], year=year)
     else:
-        calmap.calendarplot(df['Value'])
+        calmap.calendarplot(df["Value"])
     if show:
         plt.show()
 
 
 @click.command()
-@click.argument('habitname', required=False)
-@click.option('--year', default=None, type=int)
+@click.argument("habitname", required=False)
+@click.option("--year", default=None, type=int)
 def habits(habitname: str = None, year: int = None):
     df = load_df()
     if habitname:

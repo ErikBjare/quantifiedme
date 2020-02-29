@@ -11,10 +11,10 @@ from qslang.main import qslang as qslang_entry, load_events
 logger = logging.getLogger(__name__)
 
 ureg = pint.UnitRegistry()
-ureg.define('mc- = 10**-6')
+ureg.define("mc- = 10**-6")
 
-memory = Memory('.cache', verbose=0)
-#memory.clear()
+memory = Memory(".cache", verbose=0)
+# memory.clear()
 
 
 class DuplicateFilter:
@@ -58,20 +58,27 @@ def load_df():
     # TODO: Load from config.toml
     day_offset = timedelta(hours=-4)
 
-    df = pd.DataFrame([{
-        'timestamp': e.timestamp,
-        'date': (e.timestamp + day_offset).date(),
-        'substance': e.data.get('substance'),
-        'dose': e.data.get("amount_pint") or 0,
-        'tag': list(sorted(e.data.get('tags') or set(['none'])))[0]  # TODO: Needs a "main category"
-    } for e in events])
+    df = pd.DataFrame(
+        [
+            {
+                "timestamp": e.timestamp,
+                "date": (e.timestamp + day_offset).date(),
+                "substance": e.data.get("substance"),
+                "dose": e.data.get("amount_pint") or 0,
+                "tag": list(sorted(e.data.get("tags") or set(["none"])))[
+                    0
+                ],  # TODO: Needs a "main category"
+            }
+            for e in events
+        ]
+    )
 
     return df
 
 
 def to_series(df, tag=None, substance=None):
     assert tag or substance
-    key = 'tag' if tag else 'substance'
+    key = "tag" if tag else "substance"
     val = tag if tag else substance
 
     # Filter for the tag/substance we want
@@ -82,17 +89,17 @@ def to_series(df, tag=None, substance=None):
 
     if substance:
         # Sum weight of doses for same substance
-        series = df.groupby(['date']).agg({'dose': 'sum'})['dose']
+        series = df.groupby(["date"]).agg({"dose": "sum"})["dose"]
     else:
         # Count doses if different substance with same tag
-        series = df.groupby(['date']).agg({'timestamp': 'size'})['timestamp']
-        #series = series.clip(0, 1)
+        series = df.groupby(["date"]).agg({"timestamp": "size"})["timestamp"]
+        # series = series.clip(0, 1)
 
     # Reindex
     series.index = pd.DatetimeIndex(series.index)
 
     # Resample and insert zero for days with no data
-    series = series.resample('1D').asfreq().replace(np.nan, 0)
+    series = series.resample("1D").asfreq().replace(np.nan, 0)
 
     return series
 
@@ -100,8 +107,13 @@ def to_series(df, tag=None, substance=None):
 def _missing_dates():
     # Useful helper function to find dates without any entries
     df = load_df()
-    dates_with_entries = sorted(set((d + timedelta(hours=-4)).date() for d in df["timestamp"]))
-    all_dates = sorted(d.date() for d in pd.date_range(min(dates_with_entries), max(dates_with_entries)))
+    dates_with_entries = sorted(
+        set((d + timedelta(hours=-4)).date() for d in df["timestamp"])
+    )
+    all_dates = sorted(
+        d.date()
+        for d in pd.date_range(min(dates_with_entries), max(dates_with_entries))
+    )
     dates_without_entries = sorted(set(all_dates) - set(dates_with_entries))
     print(dates_without_entries)
 
@@ -112,4 +124,4 @@ qslang = qslang_entry
 
 if __name__ == "__main__":
     _missing_dates()
-    #qslang()
+    # qslang()

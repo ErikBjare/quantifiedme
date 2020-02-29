@@ -7,7 +7,7 @@ install:
 	poetry install
 
 fmt:
-	black src/
+	black src/ tests/
 
 test:
 	poetry run python3 -m pytest tests/

@@ -74,7 +74,8 @@ def load_smartertime(since) -> List[Event]:
     return events_smartertime
 
 
-def load_complete_timeline(since: datetime, datasources: List[str] = None):
+# TODO: Make it possible to select which hostname to get a timeline for
+def load_complete_timeline(since: datetime, datasources: List[str] = None, hostnames: List[str] = ["erb-main2", "erb-main2-arch", "erb-laptop2-arch", "SHADOW-DEADGSK6"]):
     now = datetime.now(tz=timezone.utc)
 
     assert since.tzinfo
@@ -82,8 +83,7 @@ def load_complete_timeline(since: datetime, datasources: List[str] = None):
 
     # TODO: Load available datasources from config file
     if not datasources:
-        #datasources = ["activitywatch", "smartertime"]
-        datasources = ["fake"]
+        datasources = ["activitywatch", "smartertime"]
 
     # Check for invalid sources
     for source in datasources:
@@ -93,17 +93,18 @@ def load_complete_timeline(since: datetime, datasources: List[str] = None):
 
     # TODO: Load from multiple devices
     if 'activitywatch' in datasources:
-        # Split up into previous days and today, to take advantage of caching
-        # TODO: Split up into whole days
-        events_aw: List[Event] = []
-        for dtstart, dtend in split_into_weeks(since, now):
-            events_aw += aw_research.classify.get_events(since=dtstart, end=dtend, include_smartertime=False, include_toggl=False)
-            print(len(events_aw))
-        for e in events_aw:
-            e.data['$source'] = 'activitywatch'
+        for hostname in hostnames:
+            # Split up into previous days and today, to take advantage of caching
+            # TODO: Split up into whole days
+            events_aw: List[Event] = []
+            for dtstart, dtend in split_into_weeks(since, now):
+                events_aw += aw_research.classify.get_events(hostname, since=dtstart, end=dtend, include_smartertime=False, include_toggl=False)
+                print(len(events_aw))
+            for e in events_aw:
+                e.data['$source'] = 'activitywatch'
 
-        events = _union_no_overlap(events, events_aw)
-        verify_no_overlap(events)
+            events = _union_no_overlap(events, events_aw)
+            verify_no_overlap(events)
 
     # The above code does caching using joblib, use the following if you want to clear the cache:
     #aw_research.classify.memory.clear()
@@ -185,11 +186,7 @@ def classify(events: List[Event]) -> List[Event]:
     return events
 
 
-def load_category_df(events: List[Event] = None):
-    # TODO: Load entire timeline, categorize, return dataframe with how much time was spent in each category each day
-    if events is None:
-        events = load_complete_timeline(datetime.now(tz=timezone.utc) - timedelta(days=90))
-
+def load_category_df(events: List[Event]):
     tss = {}
     all_categories = list(set(t for e in events for t in e.data['$tags']))
     for cat in all_categories:

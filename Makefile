@@ -6,6 +6,9 @@ dashboard/build/dashboard.html:
 install:
 	poetry install
 
+fmt:
+	black src/
+
 test:
 	poetry run python3 -m pytest tests/
 

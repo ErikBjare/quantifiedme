@@ -1,4 +1,5 @@
 import logging
+from typing import List
 from datetime import timedelta
 
 import pandas as pd
@@ -6,7 +7,9 @@ import numpy as np
 from joblib import Memory
 import pint
 
+from aw_core import Event
 from qslang.main import qslang as qslang_entry, load_events
+from .config import load_config
 
 logger = logging.getLogger(__name__)
 
@@ -42,41 +45,58 @@ class DuplicateFilter:
 
 
 @memory.cache
-def load_df():
-    events = load_events()
+def load_df(events: List[Event] = None) -> pd.DataFrame:
+    if events is None:
+        events = load_events()
     events = [e for e in events]
 
     with DuplicateFilter(logger):
         for e in events:
             try:
-                e.data["amount_pint"] = ureg(e.data.get("amount") or 0)
-                if not isinstance(e.data["amount_pint"], (int, float)):
-                    e.data["amount_pint"] = e.data["amount_pint"].magnitude
+                # If amount was unknown, we should use the mean dose for the substance in its place,
+                # but we'll set it to np.nan in the meantime
+                if "?" in e.data.get("amount", ""):
+                    e.data["amount_pint"] = np.nan
+                else:
+                    e.data["amount_pint"] = ureg(e.data.get("amount") or 0)
+                    if not isinstance(e.data["amount_pint"], (int, float)):
+                        e.data["amount_pint"] = (
+                            e.data["amount_pint"].to_base_units().magnitude
+                        )
             except pint.UndefinedUnitError as e:
                 logger.warning(e)
 
-    # TODO: Load from config.toml
-    day_offset = timedelta(hours=-4)
+    date_offset = timedelta(hours=load_config()["me"]["date_offset_hours"])
 
     df = pd.DataFrame(
         [
             {
                 "timestamp": e.timestamp,
-                "date": (e.timestamp + day_offset).date(),
+                "date": (e.timestamp - date_offset).date(),
                 "substance": e.data.get("substance"),
                 "dose": e.data.get("amount_pint") or 0,
-                "tag": list(sorted(e.data.get("tags") or set(["none"])))[
-                    0
-                ],  # TODO: Needs a "main category"
+                # FIXME: Only supports one tag
+                "tag": list(sorted(e.data.get("tags") or set(["none"])))[0],
             }
             for e in events
         ]
     )
 
+    # Replace NaN with mean of non-zero doses
+    for substance in set(df["substance"]):
+        mean_dose = df[df["substance"] == substance].mean()
+        df[df["substance"] == substance] = df[df["substance"] == substance].replace(
+            np.nan, mean_dose
+        )
+
     return df
 
 
-def to_series(df, tag=None, substance=None):
+def to_series(df: pd.DataFrame, tag: str = None, substance: str = None) -> pd.Series:
+    """
+    Takes a dataframe with multiple dose events and returns a date series with the
+    total daily dose (if substance specified) or the daily count of doses (if tag specified).
+    """
     assert tag or substance
     key = "tag" if tag else "substance"
     val = tag if tag else substance

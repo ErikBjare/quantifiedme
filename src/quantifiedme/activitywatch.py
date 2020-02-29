@@ -4,6 +4,7 @@ Much of this taken from the QuantifiedMe notebook
 
 from typing import List, Iterable
 from datetime import datetime, timedelta, timezone
+import logging
 import random
 
 import pandas as pd
@@ -23,6 +24,8 @@ from aw_research import (
 from aw_research import load_toggl
 
 from .config import load_config
+
+logger = logging.getLogger(__name__)
 
 fakedata_weights = [
     (100, None),
@@ -110,7 +113,6 @@ def load_complete_timeline(
 
     events: List[Event] = []
 
-    # TODO: Load from multiple devices
     if "activitywatch" in datasources:
         for hostname in hostnames:
             # Split up into previous days and today, to take advantage of caching
@@ -124,7 +126,7 @@ def load_complete_timeline(
                     include_smartertime=False,
                     include_toggl=False,
                 )
-                print(len(events_aw))
+                logger.debug(f"{len(events_aw)} events retreived")
             for e in events_aw:
                 e.data["$source"] = "activitywatch"
 
@@ -218,7 +220,9 @@ def load_category_df(events: List[Event]):
         except Exception as e:
             if "No events to calculate on" not in str(e):
                 raise
-    return pd.DataFrame(tss)
+    df = pd.DataFrame(tss)
+    df.replace(np.nan, 0)
+    return df
 
 
 @click.command()

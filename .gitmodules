@@ -4,9 +4,6 @@
 [submodule "chatalysis"]
 	path = chatalysis
 	url = https://github.com/ErikBjare/chatalysis.git
-[submodule "smartertime2activitywatch"]
-	path = smartertime2activitywatch
-	url = https://github.com/ErikBjare/smartertime2activitywatch.git
 [submodule "mifit-data-export"]
 	path = vendor/mifit-data-export
 	url = https://github.com/Dolnor/mifit-data-export.git

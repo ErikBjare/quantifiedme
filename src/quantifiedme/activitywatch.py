@@ -21,7 +21,7 @@ from aw_research import (
     start_of_day,
     end_of_day,
 )
-from aw_research import load_toggl
+from .load_toggl import load_toggl
 
 from .config import load_config
 
@@ -76,7 +76,6 @@ def create_fake_events(start: datetime, end: datetime) -> Iterable[Event]:
 
 def load_smartertime(since) -> List[Event]:
     events_smartertime: List[Event] = []
-    # TODO: Use paths from config file
     for smartertime_awbucket_path in load_config()["data"]["smartertime_buckets"]:
         new_events = aw_research.classify._get_events_smartertime(
             since, filepath=smartertime_awbucket_path
@@ -87,7 +86,26 @@ def load_smartertime(since) -> List[Event]:
     return events_smartertime
 
 
-# TODO: Make it possible to select which hostname to get a timeline for
+def _join_events(
+    old_events: List[Event], new_events: List[Event], source: str
+) -> List[Event]:
+    if not new_events:
+        logger.info(f"No events found from {source}, continuing...")
+        return old_events
+
+    logger.info(f"Fetch from {source} complete, joining with the rest...")
+
+    event_first = min(new_events, key=lambda e: e.timestamp)
+    event_last = max(new_events, key=lambda e: e.timestamp)
+    logger.info(f"  Start: {event_first.timestamp}")
+    logger.info(f"  End:   {event_last.timestamp}")
+    verify_no_overlap(new_events)
+    events = _union_no_overlap(old_events, new_events)
+    verify_no_overlap(events)
+    return events
+
+
+# TODO: Make it possible to select which hostnames to get a timeline for
 def load_complete_timeline(
     since: datetime,
     datasources: List[str] = None,
@@ -95,7 +113,7 @@ def load_complete_timeline(
         "erb-main2",
         "erb-main2-arch",
         "erb-laptop2-arch",
-        "SHADOW-DEADGSK6",
+        # "SHADOW-DEADGSK6",
     ],
 ):
     now = datetime.now(tz=timezone.utc)
@@ -115,6 +133,7 @@ def load_complete_timeline(
 
     if "activitywatch" in datasources:
         for hostname in hostnames:
+            logger.info(f"Getting events for {hostname}...")
             # Split up into previous days and today, to take advantage of caching
             # TODO: Split up into whole days
             events_aw: List[Event] = []
@@ -129,33 +148,26 @@ def load_complete_timeline(
                 logger.debug(f"{len(events_aw)} events retreived")
             for e in events_aw:
                 e.data["$source"] = "activitywatch"
-
-            events = _union_no_overlap(events, events_aw)
-            verify_no_overlap(events)
+            events = _join_events(events, events_aw, f"activitywatch {hostname}")
 
     # The above code does caching using joblib, use the following if you want to clear the cache:
     # aw_research.classify.memory.clear()
 
     if "smartertime" in datasources:
         events_smartertime = load_smartertime(since)
-        verify_no_overlap(events_smartertime)
-        events = _union_no_overlap(events, events_smartertime)
-        verify_no_overlap(events)
+        events = _join_events(events, events_smartertime, "smartertime")
 
     if "toggl" in datasources:
         events_toggl = load_toggl(since, now)
-        verify_no_overlap(events_toggl)
-        print(f"Oldest: {min(events_toggl, key=lambda e: e.timestamp).timestamp}")
-        events = _union_no_overlap(events, events_toggl)
-        verify_no_overlap(events)
+        events = _join_events(events, events_toggl, "toggl")
 
     if "fake" in datasources:
-        fake_events = list(create_fake_events(start=since, end=now))
-        events += fake_events
+        events_fake = list(create_fake_events(start=since, end=now))
+        events = _join_events(events, events_fake, "fake")
 
     # Verify that no events are older than `since`
-    print(since)
-    print(events[0].timestamp)
+    print(f"Query start: {since}")
+    print(f"Events start: {events[0].timestamp}")
     assert all([since <= e.timestamp for e in events])
 
     # Verify that no events take place in the future
@@ -167,12 +179,15 @@ def load_complete_timeline(
     verify_no_overlap(events)
 
     # Categorize
-    events = classify(events)
+    personal = "fake" not in datasources
+    if not personal:
+        logger.info("One of the sources was 'fake', assuming non-personal data")
+    events = classify(events, personal)
 
     return events
 
 
-def classify(events: List[Event]) -> List[Event]:
+def classify(events: List[Event], personal: bool) -> List[Event]:
     # TODO: Move to example config.toml
     classes = [
         # (Social) Media
@@ -196,14 +211,13 @@ def classify(events: List[Event]) -> List[Event]:
         (r"Advanced Web Security", "CS", "School"),
     ]
 
-    personal = True
-
     # Now load the classes from within the notebook, or from a CSV file.
     load_from_file = True if personal else False
     if load_from_file:
         # TODO: Move categories into config.toml itself
         aw_research.classify._init_classes(filename=load_config()["data"]["categories"])
     else:
+        logger.info("Using example categories")
         aw_research.classify._init_classes(new_classes=classes)
 
     events = aw_research.classify.classify(events)

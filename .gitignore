@@ -8,3 +8,4 @@ __pycache__
 data
 personal
 **.egg-info
+config.toml

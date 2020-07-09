@@ -1,0 +1,21 @@
+[me]
+name = "john"
+
+# Hours of next day to count as being part of the previous day (for past midnight shenanigans)
+date_offset_hours = 5
+
+[data]
+habitbull = "/home/user/Downloads/HabitBullData.csv"
+location = "/home/user/location"
+oura = "/home/user/Downloads/oura_2020-02-27T09-07-47.json"
+categories = "/home/user/categories.toml"  # categories.toml from aw-research
+smartertime_buckets = [
+    '/home/user/data/smartertime/smartertime_export_2020-01-01_bb7f26aa.awbucket.json',
+]
+
+[locations]
+
+    [locations.gym]
+    lat = 55.722379
+    long = 13.213125
+    accuracy = 0.001

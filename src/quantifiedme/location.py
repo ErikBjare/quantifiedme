@@ -26,6 +26,8 @@ def location_history_to_df(fn):
             if p in loc:
                 loc.pop(p)
     df = pd.DataFrame(locs).set_index("timestamp")
+    # Remove duplicates in index
+    df = df[~df.index.duplicated(keep="first")]
     df = df.resample("10Min").ffill()
     return df
 

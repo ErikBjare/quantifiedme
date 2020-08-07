@@ -1,15 +1,48 @@
-.PHONY: build build-personal set-testing set-personal
+.PHONY: build build-personal
 
-build:
-	poetry run jupyter nbconvert 'QuantifiedMe - Dashboard.ipynb' --execute --ExecutePreprocessor.kernel_name=python3 --ExecutePreprocessor.timeout=600
+DASHBOARD_SRC=Dashboard.ipynb
+DASHBOARD=output/Dashboard.html
 
-build-personal:
+build: output/Dashboard.html output/personal/All.html
+
+output/%.html: %.ipynb
+	poetry run jupyter nbconvert $^ --output-dir output --execute --ExecutePreprocessor.kernel_name=python3 --ExecutePreprocessor.timeout=600
+
+precommit:
+	poetry run jupyter nbconvert --ClearOutputPreprocessor.enabled=True --inplace *.ipynb
+
+build-personal: $(DASHBOARD)
+
+build-personal-slow:
 	make set-personal
-	make build
+	make set-slow
+	make build-personal
 	make set-testing
 
-set-testing:
-	sed -i 's/personal = True/personal = False/' 'QuantifiedMe - Dashboard.ipynb'  # Set personal = False, in case it was accidentally comitted with `personal = True`
+build-personal-fast:
+	make set-personal
+	make set-fast
+	make build-personal
+	make set-slow
+	make set-testing
 
+clean:
+	rm -r output
+
+# Notebook settings
+
+.PHONY: set-fast
+set-fast:
+	sed -i 's/fast = False/fast = True/' $(DASHBOARD_SRC)
+
+.PHONY: set-slow
+set-slow:
+	sed -i 's/fast = True/fast = False/' $(DASHBOARD_SRC)
+
+.PHONY: set-testing
+set-testing:
+	sed -i 's/personal = True/personal = False/' $(DASHBOARD_SRC)  # Set personal = False, in case it was accidentally comitted with `personal = True`
+
+.PHONY: set-personal
 set-personal:
-	sed -i 's/personal = False/personal = True/' 'QuantifiedMe - Dashboard.ipynb'
+	sed -i 's/personal = False/personal = True/' $(DASHBOARD_SRC)

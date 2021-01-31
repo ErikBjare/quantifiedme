@@ -1,3 +1,6 @@
+all:
+	env PERSONAL=true FAST=true make -C notebooks build
+
 dashboard: dashboard/build/dashboard.html
 
 dashboard/build/dashboard.html:

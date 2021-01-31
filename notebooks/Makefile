@@ -1,30 +1,26 @@
-.PHONY: build build-personal
+.PHONY: build
 
 DASHBOARD_SRC=Dashboard.ipynb
 DASHBOARD=output/Dashboard.html
 
-build: output/Dashboard.html output/personal/All.html
+SRC_FILES := $(wildcard *.ipynb personal/*.ipynb)
+OUT_FILES := $(patsubst %.ipynb,output/%.html,$(SRC_FILES))
+
+build: $(OUT_FILES)
 
 output/%.html: %.ipynb
-	poetry run jupyter nbconvert $^ --output-dir output --execute --ExecutePreprocessor.kernel_name=python3 --ExecutePreprocessor.timeout=600
+ifeq ($(PERSONAL),true)
+	make set-personal FILE=$^
+endif
+ifeq ($(FAST),true)
+	make set-fast FILE=$^
+endif
+	poetry run jupyter nbconvert $^ --output-dir output --to=html --execute --ExecutePreprocessor.kernel_name=python3 --ExecutePreprocessor.timeout=600
+	make set-testing FILE=$^
+	make set-slow FILE=$^
 
 precommit:
 	poetry run jupyter nbconvert --ClearOutputPreprocessor.enabled=True --inplace *.ipynb
-
-build-personal: $(DASHBOARD)
-
-build-personal-slow:
-	make set-personal
-	make set-slow
-	make build-personal
-	make set-testing
-
-build-personal-fast:
-	make set-personal
-	make set-fast
-	make build-personal
-	make set-slow
-	make set-testing
 
 clean:
 	rm -r output
@@ -33,16 +29,20 @@ clean:
 
 .PHONY: set-fast
 set-fast:
-	sed -i 's/fast = False/fast = True/' $(DASHBOARD_SRC)
+	sed -i 's/fast = False/fast = True/' $(FILE)
 
 .PHONY: set-slow
 set-slow:
-	sed -i 's/fast = True/fast = False/' $(DASHBOARD_SRC)
+	sed -i 's/fast = True/fast = False/' $(FILE)
 
 .PHONY: set-testing
 set-testing:
-	sed -i 's/personal = True/personal = False/' $(DASHBOARD_SRC)  # Set personal = False, in case it was accidentally comitted with `personal = True`
+	sed -i 's/personal = True/personal = False/' $(FILE)  # Set personal = False, in case it was accidentally comitted with `personal = True`
 
 .PHONY: set-personal
 set-personal:
-	sed -i 's/personal = False/personal = True/' $(DASHBOARD_SRC)
+	sed -i 's/personal = False/personal = True/' $(FILE)
+
+debug:
+	echo $(SRC_FILES)
+	echo $(OUT_FILES)

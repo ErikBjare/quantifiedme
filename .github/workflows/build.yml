@@ -1,0 +1,155 @@
+name: Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9']
+        aw-server: ["aw-server"]
+        aw-version: ["v0.10.0"]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: Set up Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    # TODO: Refactor out getting ActivityWatch builds (both release and nightly) into an action
+    - name: Install and run ActivityWatch
+      if: ${{ matrix.aw-version != 'master' }}
+      run: |
+        wget --no-verbose -O activitywatch.zip https://github.com/ActivityWatch/activitywatch/releases/download/${{ matrix.aw-version }}/activitywatch-${{ matrix.aw-version }}-linux-x86_64.zip
+        unzip activitywatch.zip
+        ./activitywatch/${{ matrix.aw-server }}/${{ matrix.aw-server }} --testing &
+
+    - name: Insert fake data into aw-server
+      run: |
+        pip install git+https://github.com/ActivityWatch/aw-client.git
+        wget --no-verbose -O fakedata.py https://github.com/ActivityWatch/aw-fakedata/raw/5158825ee9a8d50fa890518156f5a516cea79dd3/aw-fakedata.py
+        python3 fakedata.py
+
+    - name: Install
+      run: |
+        pip install poetry
+        poetry install
+
+    - name: Run tests
+      run: |
+        make test
+     
+  notebooks:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9']
+        aw-server: ["aw-server", "aw-server-rust"]
+        aw-version: ["v0.10.0"]
+        #include:
+        #- aw-server: "aw-server-rust"
+        #  aw-version: "master"
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: Set up Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    # TODO: Refactor out getting ActivityWatch builds (both release and nightly) into an action
+    - name: Install and run ActivityWatch
+      if: ${{ matrix.aw-version != 'master' }}
+      run: |
+        wget --no-verbose -O activitywatch.zip https://github.com/ActivityWatch/activitywatch/releases/download/${{ matrix.aw-version }}/activitywatch-${{ matrix.aw-version }}-linux-x86_64.zip
+        unzip activitywatch.zip
+        ./activitywatch/${{ matrix.aw-server }}/${{ matrix.aw-server }} &
+
+    - name: Download aw-server-rust nightly
+      if: ${{ matrix.aw-server == 'aw-server-rust' && matrix.aw-version == 'master' }}
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        repo: ActivityWatch/aw-server-rust
+        # Required, workflow file name or ID
+        workflow: build.yml
+        # Optional, the status or conclusion of a completed workflow to search for
+        # Can be one of a workflow conclusion::
+        # "failure", "success", "neutral", "cancelled", "skipped", "timed_out", "action_required"
+        # Or a workflow status:
+        # "completed", "in_progress", "queued"
+        # Default: "completed,success"
+        workflow_conclusion: "completed"  # FIXME: Don't try to use builds that fail on Linux
+        branch: master
+        event: push
+        # Uploaded artifact name,
+        name: binaries-Linux  # NOTE: debug build
+        # Directory where to extract artifact
+        path: aw-server-rust
+
+    - name: Install and run aw-server-rust nightly
+      if: ${{ matrix.aw-server == 'aw-server-rust' && matrix.aw-version == 'master' }}
+      run: |
+        chmod +x ./aw-server-rust/debug/aw-server
+        ./aw-server-rust/debug/aw-server --testing &
+
+    - name: Insert fake data into aw-server
+      run: |
+        pip install git+https://github.com/ActivityWatch/aw-client.git
+        wget --no-verbose -O fakedata.py https://github.com/ActivityWatch/aw-fakedata/raw/5158825ee9a8d50fa890518156f5a516cea79dd3/aw-fakedata.py
+        # NOTE: AW_TESTING set to False since the notebook tries to fetch from prod
+        env AW_TESTING=false python3 fakedata.py
+
+    - name: Install
+      run: |
+        pip install poetry
+        poetry install
+
+    - name: Build notebooks
+      env:
+        aw_server: ${{ matrix.aw-server }}
+        aw_version: ${{ matrix.aw-version }}
+      run: |
+        make notebooks
+        mkdir notebooks/build/$aw_server
+        mv notebooks/build/*.html notebooks/build/$aw_server/
+
+    - name: Upload notebooks
+      uses: actions/upload-artifact@v2
+      with:
+        name: notebooks
+        path: notebooks/output
+
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [notebooks]
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: notebooks
+          path: dist
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Deploy 🚀
+        uses: JamesIves/github-pages-deploy-action@releases/v3
+        if: github.ref == 'refs/heads/master'
+        with:
+          BRANCH: gh-pages # The branch the action should deploy to.
+          FOLDER: dist # The folder the action should deploy.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from aw_core import Event
 
 now = datetime.now(tz=timezone.utc)
@@ -61,6 +63,17 @@ def test_load_activitywatch():
         datetime.now(tz=timezone.utc) - timedelta(days=90), datasources=["fake"]
     )
     assert not load_category_df(events).empty
+
+
+def test_load_toggl():
+    pytest.skip("Broken")
+    from quantifiedme.load_toggl import load_toggl
+
+    now = datetime.now(tz=timezone.utc)
+    events = load_toggl(now - timedelta(days=90), now)
+    print(events)
+    assert events
+    # assert False
 
 
 def test_load_location():

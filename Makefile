@@ -1,5 +1,10 @@
-all:
+all: notebooks
+
+notebooks: notebooks/output/Dashboard.html
+
+notebooks/output/Dashboard.html:
 	env PERSONAL=true FAST=true make -C notebooks build
+
 
 dashboard: dashboard/build/dashboard.html
 

@@ -11,35 +11,45 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.8, <3.9"   # needed because togglcli has a <3.9 constraint
+aw-core = "^0.5" 
+aw-client = "^0.5" 
+aw_research = {git = "https://github.com/ActivityWatch/aw-research.git"}
+#aw_research = {path = "/home/erb/Programming/activitywatch/other/aw-research", develop=true}
+qslang = {path = "QSlang", develop=true}
 numpy = "^1.18.0"
 scipy = "^1.4.1"
 pandas = "^1.0.3"
 matplotlib = "^3.1.2"
 calmap = "^0.0.8"
 joblib = "^0.14.1"
-qslang = {path = "QSlang", develop=true}
 tabulate = "^0.8.6"
 pint = "^0.9"
 toml = "^0.10.0"
 pytz = "^2019.3"
-aw_core = {git = "https://github.com/ActivityWatch/aw-core.git"}
-aw_client = {git = "https://github.com/ActivityWatch/aw-client.git"}
-#aw_research = {git = "https://github.com/ActivityWatch/aw-research.git"}
-aw_research = {path = "/home/erb/Programming/activitywatch/other/aw-research", develop=true}
-#togglcli = "^2.2"
-togglcli = {path = "vendor/toggl-cli"}
+togglcli = "^2.2"
+#togglcli = {path = "vendor/toggl-cli"}
 statsmodels = "^0.11.1"
 pandas-profiling = "^2.8.0"
 
 [tool.poetry.dev-dependencies]
 jupyter = "^1.0.0"
 ipykernel = "^5.1.3"
-pytest = "^5.3.2"
+pytest = "^6.0"
 flake8 = "^3.7.9"
 mypy = "*"
 jupyterlab = "^1.2.4"
 black = "^19.10b0"
 ipympl = "^0.5.7"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+#addopts = "--cov-report=xml --cov-report=html --cov=quantifiedme" # --profile --cov-report=term 
+testpaths = [
+    "src/quantifiedme",
+    "tests",
+]
+python_files = ["*.py",]
+filterwarnings = ["ignore::DeprecationWarning",]
 
 [build-system]
 requires = ["poetry>=0.12"]

@@ -49,9 +49,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9']
-        aw-server: ["aw-server", "aw-server-rust"]
-        aw-version: ["v0.10.0"]
+        #python-version: ['3.8']
+        #aw-server: ["aw-server", "aw-server-rust"]
+        #aw-version: ["v0.10.0"]
+        include:
+        - python-version: '3.8'
+          aw-server: "aw-server-rust"
+          aw-version: "master" 
 
     steps:
     - uses: actions/checkout@v2
@@ -64,11 +68,49 @@ jobs:
 
     - name: Set up ActivityWatch
       uses: ActivityWatch/setup-action@v2
+      if: ${{ matrix.aw-version != 'master' }}
       with:
         aw-server: ${{ matrix.aw-server }}
         aw-version: ${{ matrix.aw-version }}
         aw-testing: false
         fakedata: true
+    
+    - name: Download aw-server-rust nightly
+      uses: dawidd6/action-download-artifact@v2
+      if: ${{ matrix.aw-server == 'aw-server-rust' && matrix.aw-version == 'master' }}
+      with:
+        repo: ActivityWatch/aw-server-rust
+        # Required, workflow file name or ID
+        workflow: build.yml
+        # Optional, the status or conclusion of a completed workflow to search for
+        # Can be one of a workflow conclusion::
+        # "failure", "success", "neutral", "cancelled", "skipped", "timed_out", "action_required"
+        # Or a workflow status:
+        # "completed", "in_progress", "queued"
+        # Default: "completed,success"
+        workflow_conclusion: "completed"  # FIXME: Don't try to use builds that fail on Linux
+        branch: master
+        event: push
+        # Uploaded artifact name,
+        name: binaries-Linux  # NOTE: debug build
+        # Directory where to extract artifact
+        path: aw-server-rust
+
+    - name: Run aw-server-rust nightly
+      shell: bash
+      if: ${{ matrix.aw-server == 'aw-server-rust' && matrix.aw-version == 'master' }}
+      run: |
+        chmod +x ./aw-server-rust/debug/aw-server
+        ./aw-server-rust/debug/aw-server &
+    
+    - name: Insert fake data into aw-server
+      shell: bash
+      env:
+          AW_TESTING: false
+      run: |
+        pip install git+https://github.com/ActivityWatch/aw-client.git
+        wget --no-verbose -O fakedata.py https://github.com/ActivityWatch/aw-fakedata/raw/5158825ee9a8d50fa890518156f5a516cea79dd3/aw-fakedata.py
+        python3 fakedata.py
 
     - name: Install
       run: |

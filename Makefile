@@ -20,6 +20,9 @@ fmt:
 test:
 	poetry run python3 -m pytest tests/
 
+typecheck:
+	poetry run mypy --ignore-missing-imports src/quantifiedme tests
+
 jupyter:
 	# From: https://stackoverflow.com/a/47296960/965332
 	poetry run pip3 install ipykernel

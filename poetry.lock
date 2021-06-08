@@ -148,7 +148,7 @@ toml = "^0.10.0"
 type = "git"
 url = "https://github.com/ActivityWatch/aw-research.git"
 reference = "master"
-resolved_reference = "fe207d9aeea9529c75b46f69dda1edd9403f1e29"
+resolved_reference = "08a635174844fd126ddfdc6a9b0af8edb0b75aec"
 
 [[package]]
 name = "babel"
@@ -1887,6 +1887,22 @@ ipython-genutils = "*"
 test = ["pytest"]
 
 [[package]]
+name = "types-click"
+version = "0.1.14"
+description = "Typing stubs for click"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "types-toml"
+version = "0.1.1"
+description = "Typing stubs for toml"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "typing-extensions"
 version = "3.10.0.0"
 description = "Backported and Experimental Type Hints for Python 3.5+"
@@ -1999,7 +2015,7 @@ dev = ["pytest (>=4.6.2)", "black (>=19.3b0)"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8, <3.9"   # needed because togglcli has a <3.9 constraint
-content-hash = "4f37c676ef35433a498905517a40dfffdd6071f9b9622f5245e9f75efb6cbd73"
+content-hash = "7276c45cf7aae8281b358526ce7d60a3e46b36f0dc8dca470edc3bf4b7185951"
 
 [metadata.files]
 ansicon = [
@@ -3104,6 +3120,12 @@ tqdm = [
 traitlets = [
     {file = "traitlets-5.0.5-py3-none-any.whl", hash = "sha256:69ff3f9d5351f31a7ad80443c2674b7099df13cc41fc5fa6e2f6d3b0330b0426"},
     {file = "traitlets-5.0.5.tar.gz", hash = "sha256:178f4ce988f69189f7e523337a3e11d91c786ded9360174a3d9ca83e79bc5396"},
+]
+types-click = [
+    {file = "types_click-0.1.14-py2.py3-none-any.whl", hash = "sha256:100c6f5cb3127b054b5eb6d362ee391130c3e6abad948b8e44990ef4e98c7d36"},
+]
+types-toml = [
+    {file = "types_toml-0.1.1-py2.py3-none-any.whl", hash = "sha256:ccebb129f6d68f49fbeb0efd000d48098b3f62885f0dbe44ad001e8b9c0b62ff"},
 ]
 typing-extensions = [
     {file = "typing_extensions-3.10.0.0-py2-none-any.whl", hash = "sha256:0ac0f89795dd19de6b97debb0c6af1c70987fd80a2d62d1958f7e56fcc31b497"},

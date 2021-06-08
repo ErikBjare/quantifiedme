@@ -29,6 +29,8 @@ togglcli = "^2.2"
 #togglcli = {path = "vendor/toggl-cli"}
 statsmodels = "^0.11.1"
 pandas-profiling = "^2.8.0"
+types-click = "^0.1.14"
+types-toml = "^0.1.1"
 
 [tool.poetry.dev-dependencies]
 jupyter = "^1.0.0"

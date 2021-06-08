@@ -82,7 +82,6 @@ jobs:
         repo: ActivityWatch/aw-server-rust
         # Required, workflow file name or ID
         workflow: build.yml
-        # Optional, the status or conclusion of a completed workflow to search for
         # Can be one of a workflow conclusion::
         # "failure", "success", "neutral", "cancelled", "skipped", "timed_out", "action_required"
         # Or a workflow status:
@@ -101,7 +100,7 @@ jobs:
       if: ${{ matrix.aw-server == 'aw-server-rust' && matrix.aw-version == 'master' }}
       run: |
         chmod +x ./aw-server-rust/debug/aw-server
-        ./aw-server-rust/debug/aw-server &
+        ./aw-server-rust/debug/aw-server --port 5600 &
     
     - name: Insert fake data into aw-server
       shell: bash

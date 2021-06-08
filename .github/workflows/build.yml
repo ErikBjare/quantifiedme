@@ -131,6 +131,10 @@ jobs:
         name: notebooks
         path: notebooks/output
 
+    - name: Echo logs
+      if: ${{ always() }}   # ${{ failure() }}
+      run: |
+        cat $HOME/.cache/activitywatch/log/aw-server-rust/*
 
   deploy:
     runs-on: ubuntu-latest

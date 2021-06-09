@@ -115,11 +115,11 @@ def _join_events(
     return events
 
 
-# TODO: Make it possible to select which hostnames to get a timeline for
 def load_complete_timeline(
     since: datetime,
     datasources: List[str],
     hostnames: List[str],
+    personal: bool,
     testing: bool = False,
 ):
     now = datetime.now(tz=timezone.utc)
@@ -186,9 +186,6 @@ def load_complete_timeline(
     verify_no_overlap(events)
 
     # Categorize
-    personal = "fake" not in datasources
-    if not personal:
-        logger.info("One of the sources was 'fake', assuming non-personal data")
     events = classify(events, personal)
 
     return events

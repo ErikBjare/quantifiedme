@@ -3,6 +3,8 @@ QuantifiedMe
 
 Loading and plotting of various Quantified Self data sources.
 
+You can see an example notebook with fake data built in CI here: https://erik.bjareholt.com/quantifiedme/aw-server-rust/Dashboard.html
+
 **Note:** The code is not in a condition to be used by others than me, but I encourage you to try to anyway, and report or send PRs for any issues you encounter.
 
 ## Features

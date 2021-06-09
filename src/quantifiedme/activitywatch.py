@@ -2,7 +2,7 @@
 Much of this taken from the QuantifiedMe notebook
 """
 
-from typing import List, Iterable
+from typing import List, Iterable, Dict
 from datetime import datetime, timedelta, timezone
 import logging
 import random
@@ -10,17 +10,19 @@ import random
 import pandas as pd
 import numpy as np
 import click
+
 from aw_core import Event
+from aw_transform.union_no_overlap import union_no_overlap
+
 import aw_research
-from aw_research.classify import _union_no_overlap
-from aw_research import verify_no_overlap, split_into_weeks, split_into_days
+import aw_research.classify
+from aw_research import verify_no_overlap, split_into_weeks
 from aw_research import (
     split_event_on_hour,
     categorytime_per_day,
     categorytime_during_day,
-    start_of_day,
-    end_of_day,
 )
+
 from .load_toggl import load_toggl
 
 from .config import load_config
@@ -46,6 +48,7 @@ fakedata_weights = [
 ]
 
 
+# TODO: Merge/replace with aw-fakedata
 def create_fake_events(start: datetime, end: datetime) -> Iterable[Event]:
     assert start.tzinfo
     assert end.tzinfo
@@ -74,15 +77,22 @@ def create_fake_events(start: datetime, end: datetime) -> Iterable[Event]:
             yield Event(timestamp=timestamp, duration=duration, data=data)
 
 
-def load_smartertime(since) -> List[Event]:
-    events_smartertime: List[Event] = []
+def _load_smartertime_devices(since: datetime) -> Dict[str, List]:
+    result = {}
     for smartertime_awbucket_path in load_config()["data"]["smartertime_buckets"]:
-        new_events = aw_research.classify._get_events_smartertime(
+        events = aw_research.classify._get_events_smartertime(
             since, filepath=smartertime_awbucket_path
         )
-        events_smartertime = _union_no_overlap(events_smartertime, new_events)
-    for e in events_smartertime:
-        e.data["$source"] = "smartertime"
+        for e in events:
+            e.data["$source"] = "smartertime"
+        result[smartertime_awbucket_path] = events
+    return result
+
+
+def load_smartertime(since: datetime) -> List[Event]:
+    events_smartertime: List[Event] = []
+    for path, events in _load_smartertime_devices(since).items():
+        events_smartertime = union_no_overlap(events_smartertime, events)
     return events_smartertime
 
 
@@ -100,21 +110,17 @@ def _join_events(
     logger.info(f"  Start: {event_first.timestamp}")
     logger.info(f"  End:   {event_last.timestamp}")
     verify_no_overlap(new_events)
-    events = _union_no_overlap(old_events, new_events)
+    events = union_no_overlap(old_events, new_events)
     verify_no_overlap(events)
     return events
 
 
-# TODO: Make it possible to select which hostnames to get a timeline for
 def load_complete_timeline(
     since: datetime,
-    datasources: List[str] = None,
-    hostnames: List[str] = [
-        "erb-main2",
-        "erb-main2-arch",
-        "erb-laptop2-arch",
-        # "SHADOW-DEADGSK6",
-    ],
+    datasources: List[str],
+    hostnames: List[str],
+    personal: bool,
+    testing: bool = False,
 ):
     now = datetime.now(tz=timezone.utc)
 
@@ -144,6 +150,7 @@ def load_complete_timeline(
                     end=dtend,
                     include_smartertime=False,
                     include_toggl=False,
+                    testing=testing,
                 )
                 logger.debug(f"{len(events_aw)} events retreived")
             for e in events_aw:
@@ -179,9 +186,6 @@ def load_complete_timeline(
     verify_no_overlap(events)
 
     # Categorize
-    personal = "fake" not in datasources
-    if not personal:
-        logger.info("One of the sources was 'fake', assuming non-personal data")
     events = classify(events, personal)
 
     return events

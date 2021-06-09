@@ -1,5 +1,5 @@
-.cache
-.mypy_cache
+.*cache
+.coverage
 .ipynb_checkpoints
 aw-research
 __pycache__
@@ -9,3 +9,5 @@ data
 personal
 **.egg-info
 config.toml
+.vscode
+.venv

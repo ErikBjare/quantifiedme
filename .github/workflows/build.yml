@@ -1,0 +1,157 @@
+name: Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  #tests:
+  #  runs-on: ubuntu-latest
+
+  #  strategy:
+  #    fail-fast: false
+  #    matrix:
+  #      python-version: ['3.9']
+  #      aw-server: ["aw-server", "aw-server-rust"]
+  #      aw-version: ["v0.10.0"]
+
+  #  steps:
+  #  - uses: actions/checkout@v2
+  #    with:
+  #      submodules: 'recursive'
+  #  - name: Set up Python
+  #    uses: actions/setup-python@v1
+  #    with:
+  #      python-version: ${{ matrix.python-version }}
+
+  #  - name: Set up ActivityWatch
+  #    uses: ActivityWatch/setup-action@v1
+  #    with:
+  #      aw-server: ${{ matrix.python-server }}
+  #      aw-version: ${{ matrix.python-version }}
+  #      aw-testing: true
+  #      fakedata: true
+
+  #  - name: Install
+  #    run: |
+  #      pip install poetry
+  #      poetry install
+
+  #  - name: Run tests
+  #    run: |
+  #      make test
+     
+  notebooks:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        #python-version: ['3.8']
+        #aw-server: ["aw-server", "aw-server-rust"]
+        #aw-version: ["v0.10.0"]
+        include:
+        - python-version: '3.8'
+          aw-server: "aw-server-rust"
+          aw-version: "master" 
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: Set up Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Set up ActivityWatch
+      uses: ActivityWatch/setup-action@v2
+      if: ${{ matrix.aw-version != 'master' }}
+      with:
+        aw-server: ${{ matrix.aw-server }}
+        aw-version: ${{ matrix.aw-version }}
+        aw-testing: false
+        fakedata: true
+    
+    - name: Download aw-server-rust nightly
+      uses: dawidd6/action-download-artifact@v2
+      if: ${{ matrix.aw-server == 'aw-server-rust' && matrix.aw-version == 'master' }}
+      with:
+        repo: ActivityWatch/aw-server-rust
+        # Required, workflow file name or ID
+        workflow: build.yml
+        # Can be one of a workflow conclusion::
+        # "failure", "success", "neutral", "cancelled", "skipped", "timed_out", "action_required"
+        # Or a workflow status:
+        # "completed", "in_progress", "queued"
+        # Default: "completed,success"
+        workflow_conclusion: "completed"  # FIXME: Don't try to use builds that fail on Linux
+        branch: master
+        event: push
+        # Uploaded artifact name,
+        name: binaries-Linux  # NOTE: debug build
+        # Directory where to extract artifact
+        path: aw-server-rust
+
+    - name: Run aw-server-rust nightly
+      shell: bash
+      if: ${{ matrix.aw-server == 'aw-server-rust' && matrix.aw-version == 'master' }}
+      run: |
+        chmod +x ./aw-server-rust/debug/aw-server
+        ./aw-server-rust/debug/aw-server &
+    
+    - name: Insert fake data into aw-server
+      shell: bash
+      env:
+          AW_TESTING: true
+      run: |
+        pip install git+https://github.com/ActivityWatch/aw-client.git
+        wget --no-verbose -O fakedata.py https://github.com/ActivityWatch/aw-fakedata/raw/57892d7ab5734e26a0ead0bb02588486a1aea778/aw-fakedata.py
+        python3 fakedata.py
+
+    - name: Install
+      run: |
+        pip install poetry
+        poetry install
+
+    - name: Build notebooks
+      env:
+        aw_server: ${{ matrix.aw-server }}
+        aw_version: ${{ matrix.aw-version }}
+      run: |
+        make notebooks
+        mkdir notebooks/output/$aw_server
+        mv notebooks/output/*.html notebooks/output/$aw_server/
+
+    - name: Upload notebooks
+      uses: actions/upload-artifact@v2
+      with:
+        name: notebooks
+        path: notebooks/output
+
+    - name: Echo logs
+      if: ${{ always() }}   # ${{ failure() }}
+      run: |
+        cat $HOME/.cache/activitywatch/log/aw-server-rust/*
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [notebooks]
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: notebooks
+          path: dist
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Deploy 🚀
+        uses: JamesIves/github-pages-deploy-action@releases/v3
+        if: github.ref == 'refs/heads/master'
+        with:
+          BRANCH: gh-pages # The branch the action should deploy to.
+          FOLDER: dist # The folder the action should deploy.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,5 +1,3 @@
-.PHONY: build
-
 DASHBOARD_SRC=Dashboard.ipynb
 DASHBOARD=output/Dashboard.html
 
@@ -11,13 +9,15 @@ build: $(OUT_FILES)
 output/%.html: %.ipynb
 ifeq ($(PERSONAL),true)
 	make set-personal FILE=$^
+else
+	make set-testing FILE=$^
 endif
 ifeq ($(FAST),true)
 	make set-fast FILE=$^
+else
+	make set-slow FILE=$^
 endif
 	poetry run jupyter nbconvert $^ --output-dir output --to=html --execute --ExecutePreprocessor.kernel_name=python3 --ExecutePreprocessor.timeout=600
-	make set-testing FILE=$^
-	make set-slow FILE=$^
 
 precommit:
 	poetry run jupyter nbconvert --ClearOutputPreprocessor.enabled=True --inplace *.ipynb

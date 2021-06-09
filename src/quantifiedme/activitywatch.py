@@ -118,13 +118,9 @@ def _join_events(
 # TODO: Make it possible to select which hostnames to get a timeline for
 def load_complete_timeline(
     since: datetime,
-    datasources: List[str] = None,
-    hostnames: List[str] = [
-        "erb-main2",
-        "erb-main2-arch",
-        "erb-laptop2-arch",
-        # "SHADOW-DEADGSK6",
-    ],
+    datasources: List[str],
+    hostnames: List[str],
+    testing: bool = False,
 ):
     now = datetime.now(tz=timezone.utc)
 
@@ -154,6 +150,7 @@ def load_complete_timeline(
                     end=dtend,
                     include_smartertime=False,
                     include_toggl=False,
+                    testing=testing,
                 )
                 logger.debug(f"{len(events_aw)} events retreived")
             for e in events_aw:

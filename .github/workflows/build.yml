@@ -122,8 +122,8 @@ jobs:
         aw_version: ${{ matrix.aw-version }}
       run: |
         make notebooks
-        mkdir notebooks/build/$aw_server
-        mv notebooks/build/*.html notebooks/build/$aw_server/
+        mkdir notebooks/output/$aw_server
+        mv notebooks/output/*.html notebooks/output/$aw_server/
 
     - name: Upload notebooks
       uses: actions/upload-artifact@v2

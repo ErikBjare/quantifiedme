@@ -100,15 +100,15 @@ jobs:
       if: ${{ matrix.aw-server == 'aw-server-rust' && matrix.aw-version == 'master' }}
       run: |
         chmod +x ./aw-server-rust/debug/aw-server
-        ./aw-server-rust/debug/aw-server --port 5600 &
+        ./aw-server-rust/debug/aw-server &
     
     - name: Insert fake data into aw-server
       shell: bash
       env:
-          AW_TESTING: false
+          AW_TESTING: true
       run: |
         pip install git+https://github.com/ActivityWatch/aw-client.git
-        wget --no-verbose -O fakedata.py https://github.com/ActivityWatch/aw-fakedata/raw/5158825ee9a8d50fa890518156f5a516cea79dd3/aw-fakedata.py
+        wget --no-verbose -O fakedata.py https://github.com/ActivityWatch/aw-fakedata/raw/57892d7ab5734e26a0ead0bb02588486a1aea778/aw-fakedata.py
         python3 fakedata.py
 
     - name: Install

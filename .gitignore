@@ -10,3 +10,4 @@ personal
 **.egg-info
 config.toml
 .vscode
+.venv

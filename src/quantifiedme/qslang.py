@@ -124,6 +124,21 @@ def to_series(df: pd.DataFrame, tag: str = None, substance: str = None) -> pd.Se
     return series
 
 
+def to_df_daily(events: List[Event]):
+    """Returns a daily dataframe"""
+    df_src = load_df(events)
+    df = pd.DataFrame()
+    tags = {tag for e in events for tag in e.data.get("tags", [])}
+    print(tags)
+    for tag in tags:
+        df[f"tag:{tag}"] = to_series(df_src, tag=tag)
+
+    substances = set(s for s in df_src["substance"] if s)
+    for subst in substances:
+        colname = subst.lower().replace("-", "").replace(" ", "")
+        df[colname] = to_series(df_src, substance=subst)
+
+
 def _missing_dates():
     # Useful helper function to find dates without any entries
     df = load_df()

@@ -60,7 +60,10 @@ def test_load_activitywatch():
     from quantifiedme.activitywatch import load_complete_timeline, load_category_df
 
     events = load_complete_timeline(
-        datetime.now(tz=timezone.utc) - timedelta(days=90), datasources=["fake"]
+        datetime.now(tz=timezone.utc) - timedelta(days=90),
+        datasources=["fake"],
+        hostnames=[],
+        personal=False,
     )
     assert not load_category_df(events).empty
 

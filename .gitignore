@@ -11,3 +11,6 @@ personal
 config.toml
 .vscode
 .venv
+
+htmlcov
+coverage.xml

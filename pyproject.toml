@@ -44,7 +44,7 @@ ipympl = "*"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-#addopts = "--cov-report=xml --cov-report=html --cov=quantifiedme" # --profile --cov-report=term 
+addopts = "--cov=quantifiedme --cov-report=xml --cov-report=html --cov-report=term" # --profile --cov-report=term 
 testpaths = [
     "src/quantifiedme",
     "tests",

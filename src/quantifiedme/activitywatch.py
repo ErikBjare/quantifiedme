@@ -222,7 +222,9 @@ def classify(events: List[Event], personal: bool) -> List[Event]:
         aw_research.classify._init_classes(filename=load_config()["data"]["categories"])
     else:
         logger.info("Using example categories")
-        aw_research.classify._init_classes(new_classes=classes)
+        # gives non-sensical type error on check:
+        #   Argument "new_classes" to "_init_classes" has incompatible type "List[Tuple[str, str, str]]"; expected "Optional[List[Tuple[str, str, Optional[str]]]]"
+        aw_research.classify._init_classes(new_classes=classes)  # type: ignore
 
     events = aw_research.classify.classify(events)
 

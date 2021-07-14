@@ -176,6 +176,10 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R
 
+      - run: |
+          mv dist/aw-server-rust/* dist/
+          rmdir dist/aw-server-rust
+
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@releases/v3
         if: github.ref == 'refs/heads/master'

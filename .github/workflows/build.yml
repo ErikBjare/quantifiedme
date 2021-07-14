@@ -27,7 +27,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Set up ActivityWatch
-      uses: ActivityWatch/setup-action@v1
+      uses: ActivityWatch/setup-action@v2
       with:
         aw-server: ${{ matrix.aw-server }}
         aw-version: ${{ matrix.aw-version }}

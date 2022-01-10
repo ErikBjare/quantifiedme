@@ -10,25 +10,26 @@ packages = [
 
 
 [tool.poetry.dependencies]
-python = "^3.8, <3.9"   # needed because togglcli has a <3.9 constraint
+python = "^3.8"
 aw-core = "^0.5" 
 aw-client = "^0.5" 
 aw_research = {git = "https://github.com/ActivityWatch/aw-research.git"}
 #aw_research = {path = "/home/erb/Programming/activitywatch/other/aw-research", develop=true}
 qslang = {path = "./QSlang", develop=true}
-numpy = "^1.18.0"
-scipy = "^1.4.1"
-pandas = "^1.0.3"
-matplotlib = "^3.1.2"
-calmap = "*"
+numpy = "*"
+scipy = "*"
+#bottleneck = "1.2.3"
+pandas = "*"
+pandas-profiling = "^3.1"
+matplotlib = "*"
+#calmap = "*"
 joblib = "*"
 tabulate = "*"
 pint = "*"
 toml = "*"
 togglcli = "^2.2"
 #togglcli = {path = "vendor/toggl-cli"}
-statsmodels = "^0.11.1"
-pandas-profiling = "^2.8.0"
+statsmodels = "^0.13.1"
 types-click = "^0.1.14"
 types-toml = "^0.1.1"
 

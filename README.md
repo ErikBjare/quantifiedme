@@ -1,6 +1,9 @@
 QuantifiedMe
 ============
 
+[![Build](https://github.com/ErikBjare/quantifiedme/actions/workflows/build.yml/badge.svg)](https://github.com/ErikBjare/quantifiedme/actions/workflows/build.yml)
+[![codecov](https://codecov.io/gh/ErikBjare/quantifiedme/branch/master/graph/badge.svg?token=zZ7hwaw9tR)](https://codecov.io/gh/ErikBjare/quantifiedme)
+
 Loading and plotting of various Quantified Self data sources.
 
 You can see an example notebook with fake data built in CI here: https://erik.bjareholt.com/quantifiedme/aw-server-rust/Dashboard.html

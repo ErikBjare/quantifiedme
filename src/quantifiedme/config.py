@@ -16,7 +16,7 @@ def load_config() -> MutableMapping[str, Any]:
     filepath = Path(appdirs.user_config_dir("quantifiedme")) / "config.toml"
     if not filepath.exists():
         logger.warning("No config found, falling back to example config")
-        filepath = Path(rootdir) / "config.toml.example"
+        filepath = Path(rootdir) / "config.example.toml"
     with open(filepath) as f:
         return toml.load(f)
 

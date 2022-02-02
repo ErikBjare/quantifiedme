@@ -1,3 +1,6 @@
+# This is an example configuration file. It should be placed in ~/.config/quantifiedme/config.toml (or equivalent for your operating system)
+# For more info, read the README.
+
 [me]
 name = "john"
 

@@ -137,7 +137,7 @@ jobs:
           AW_TESTING: true
       run: |
         pip install git+https://github.com/ActivityWatch/aw-client.git
-        wget --no-verbose -O fakedata.py https://github.com/ActivityWatch/aw-fakedata/raw/63a357dbc7b8b832ec44cc55cafd6622ce909590/aw-fakedata.py
+        wget --no-verbose -O fakedata.py https://github.com/ActivityWatch/aw-fakedata/raw/63a357dbc7b8b832ec44cc55cafd6622ce909590/aw_fakedata.py
         python3 fakedata.py
 
     - name: Install

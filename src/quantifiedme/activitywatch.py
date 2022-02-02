@@ -107,6 +107,7 @@ def _join_events(
 
     event_first = min(new_events, key=lambda e: e.timestamp)
     event_last = max(new_events, key=lambda e: e.timestamp)
+    logger.info(f"  Count: {len(new_events)}")
     logger.info(f"  Start: {event_first.timestamp}")
     logger.info(f"  End:   {event_last.timestamp}")
     verify_no_overlap(new_events)
@@ -121,8 +122,13 @@ def load_complete_timeline(
     hostnames: List[str],
     personal: bool,
     testing: bool = False,
+    cache: bool = True,
 ):
     now = datetime.now(tz=timezone.utc)
+
+    # The below code does caching using joblib, setting cache=False clears the cache.
+    if not cache:
+        aw_research.classify.memory.clear()
 
     assert since.tzinfo
     assert now.tzinfo
@@ -154,11 +160,9 @@ def load_complete_timeline(
                 )
                 logger.debug(f"{len(events_aw)} events retreived")
             for e in events_aw:
+                e.data["$hostname"] = hostname
                 e.data["$source"] = "activitywatch"
             events = _join_events(events, events_aw, f"activitywatch {hostname}")
-
-    # The above code does caching using joblib, use the following if you want to clear the cache:
-    # aw_research.classify.memory.clear()
 
     if "smartertime" in datasources:
         events_smartertime = load_smartertime(since)

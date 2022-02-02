@@ -58,7 +58,7 @@ def load_df(events: List[Event] = None) -> pd.DataFrame:
                 if "?" in e.data.get("amount", ""):
                     e.data["amount_pint"] = np.nan
                 else:
-                    e.data["amount_pint"] = ureg(e.data.get("amount") or 0)
+                    e.data["amount_pint"] = ureg(e.data.get("amount", 0))
                     if not isinstance(e.data["amount_pint"], (int, float)):
                         e.data["amount_pint"] = (
                             e.data["amount_pint"].to_base_units().magnitude

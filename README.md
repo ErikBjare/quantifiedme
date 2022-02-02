@@ -23,12 +23,19 @@ Types of data supported:
  - Oura data
  - QSlang data
 
+Planned:
+
+ - Whoop strap data
+ - Mi Band
+
 ## Notebooks
 
-There is currently only one example notebook. It is used by me as a sort of personal-productivity dashboard and plots things like hours worked per day (and on what), which categories are consuming most of my time on a 30-day and 365-day basis, and how much I make in "fictional salary" over time (by assigning an hourly wage to each category).
+There is currently only one example notebook.
+
+ - Dashboard: Uses ActivityWatch and SmarterTime data from multiple devices (desktop, laptop, phone) to create a unified overview of time spent. Used by me as a sort of personal-productivity dashboard, and plots things like hours worked per day (and on what), which categories are consuming most of my time on a 30-day and 365-day basis, and how much I make in "fictional salary" over time (by assigning an hourly wage to each category).
 
 ## Configuration
 
 The configuration is used to specify where data files are located, as well as a few settings.
 
-An example configuration file is provided in `config.toml.example`.
+An example configuration file is provided in `config.example.toml`.

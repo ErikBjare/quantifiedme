@@ -170,7 +170,7 @@ toml = "^0.10.0"
 type = "git"
 url = "https://github.com/ActivityWatch/aw-research.git"
 reference = "master"
-resolved_reference = "fa791a559847376e2712d23319cb30deb1777dbe"
+resolved_reference = "7f47a6029b4287b61b7812f91babfe715b7e9a88"
 
 [[package]]
 name = "babel"

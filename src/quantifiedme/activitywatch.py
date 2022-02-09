@@ -79,19 +79,22 @@ def create_fake_events(start: datetime, end: datetime) -> Iterable[Event]:
 
 def _load_smartertime_devices(since: datetime) -> Dict[str, List]:
     result = {}
-    for smartertime_awbucket_path in load_config()["data"]["smartertime_buckets"]:
+    for hostname, smartertime_awbucket_path in load_config()["data"][
+        "smartertime_buckets"
+    ].items():
         events = aw_research.classify._get_events_smartertime(
             since, filepath=smartertime_awbucket_path
         )
         for e in events:
             e.data["$source"] = "smartertime"
-        result[smartertime_awbucket_path] = events
+            e.data["$hostname"] = hostname
+        result[hostname] = events
     return result
 
 
 def load_smartertime(since: datetime) -> List[Event]:
     events_smartertime: List[Event] = []
-    for path, events in _load_smartertime_devices(since).items():
+    for hostname, events in _load_smartertime_devices(since).items():
         events_smartertime = union_no_overlap(events_smartertime, events)
     return events_smartertime
 
@@ -148,6 +151,7 @@ def load_complete_timeline(
             logger.info(f"Getting events for {hostname}...")
             # Split up into previous days and today, to take advantage of caching
             # TODO: Split up into whole days
+            # TODO: Use `aw_client.queries.canonicalQuery` instead
             events_aw: List[Event] = []
             for dtstart, dtend in split_into_weeks(since, now):
                 events_aw += aw_research.classify.get_events(

@@ -25,5 +25,4 @@ typecheck:
 
 jupyter:
 	# From: https://stackoverflow.com/a/47296960/965332
-	poetry run pip3 install ipykernel
 	poetry run bash -c 'python -m ipykernel install --user --name=`basename $$VIRTUAL_ENV`'

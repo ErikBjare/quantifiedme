@@ -27,7 +27,7 @@ def test_load_qslang():
         series_nonzero = series[series != 0]
 
         # More than 10mg
-        assert (10e-6 <= series_nonzero).all()
+        assert (series_nonzero >= 10e-6).all()
 
         # Less than 500mg
         assert (series_nonzero <= 500e-6).all()
@@ -40,7 +40,7 @@ def test_load_qslang():
         series_nonzero = series[series != 0]
 
         # More than 100mg
-        assert (100e-6 <= series_nonzero).all()
+        assert (series_nonzero >= 100e-6).all()
 
         # Less than 5000mg
         # FIXME: Seems some entries have >5000mg?

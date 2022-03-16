@@ -70,10 +70,9 @@ def create_fake_events(start: datetime, end: datetime) -> Iterable[Event]:
         time_passed += duration
         if start + time_passed > end:
             break
-        data = random.choices(
+        if data := random.choices(
             [d[1] for d in fakedata_weights], [d[0] for d in fakedata_weights]
-        )[0]
-        if data:
+        )[0]:
             yield Event(timestamp=timestamp, duration=duration, data=data)
 
 
@@ -183,12 +182,12 @@ def load_complete_timeline(
     # Verify that no events are older than `since`
     print(f"Query start: {since}")
     print(f"Events start: {events[0].timestamp}")
-    assert all([since <= e.timestamp for e in events])
+    assert all(since <= e.timestamp for e in events)
 
     # Verify that no events take place in the future
     # FIXME: Doesn't work with fake data, atm
     if "fake" not in datasources:
-        assert all([e.timestamp + e.duration <= now for e in events])
+        assert all(e.timestamp + e.duration <= now for e in events)
 
     # Verify that no events overlap
     verify_no_overlap(events)
@@ -200,36 +199,36 @@ def load_complete_timeline(
 
 
 def classify(events: List[Event], personal: bool) -> List[Event]:
-    # TODO: Move to example config.toml
-    classes = [
-        # (Social) Media
-        (r"Facebook|facebook.com", "Social Media", "Media"),
-        (r"Reddit|reddit.com", "Social Media", "Media"),
-        (r"Spotify|spotify.com", "Music", "Media"),
-        (r"subcategory without matching", "Video", "Media"),
-        (r"YouTube|youtube.com", "YouTube", "Video"),
-        (r"Plex|plex.tv", "Plex", "Video"),
-        (r"Fallout 4", "Games", "Media"),
-        # Work
-        (r"github.com|stackoverflow.com", "Programming", "Work"),
-        (r"[Aa]ctivity[Ww]atch|aw-.*", "ActivityWatch", "Programming"),
-        (r"[Qq]uantified[Mm]e", "QuantifiedMe", "Programming"),
-        (r"[Tt]hankful", "Thankful", "Programming"),
-        # School
-        (r"subcategory without matching", "School", "Work"),
-        (r"Duolingo|Brilliant|Khan Academy", "Self-directed", "School"),
-        (r"Analysis in One Variable", "Maths", "School"),
-        (r"Applied Machine Learning", "CS", "School"),
-        (r"Advanced Web Security", "CS", "School"),
-    ]
-
     # Now load the classes from within the notebook, or from a CSV file.
-    load_from_file = True if personal else False
+    load_from_file = personal
     if load_from_file:
         # TODO: Move categories into config.toml itself
         aw_research.classify._init_classes(filename=load_config()["data"]["categories"])
     else:
         logger.info("Using example categories")
+        # TODO: Move to example config.toml
+        classes = [
+            # (Social) Media
+            (r"Facebook|facebook.com", "Social Media", "Media"),
+            (r"Reddit|reddit.com", "Social Media", "Media"),
+            (r"Spotify|spotify.com", "Music", "Media"),
+            (r"subcategory without matching", "Video", "Media"),
+            (r"YouTube|youtube.com", "YouTube", "Video"),
+            (r"Plex|plex.tv", "Plex", "Video"),
+            (r"Fallout 4", "Games", "Media"),
+            # Work
+            (r"github.com|stackoverflow.com", "Programming", "Work"),
+            (r"[Aa]ctivity[Ww]atch|aw-.*", "ActivityWatch", "Programming"),
+            (r"[Qq]uantified[Mm]e", "QuantifiedMe", "Programming"),
+            (r"[Tt]hankful", "Thankful", "Programming"),
+            # School
+            (r"subcategory without matching", "School", "Work"),
+            (r"Duolingo|Brilliant|Khan Academy", "Self-directed", "School"),
+            (r"Analysis in One Variable", "Maths", "School"),
+            (r"Applied Machine Learning", "CS", "School"),
+            (r"Advanced Web Security", "CS", "School"),
+        ]
+
         # gives non-sensical type error on check:
         #   Argument "new_classes" to "_init_classes" has incompatible type "List[Tuple[str, str, str]]"; expected "Optional[List[Tuple[str, str, Optional[str]]]]"
         aw_research.classify._init_classes(new_classes=classes)  # type: ignore
@@ -241,7 +240,7 @@ def classify(events: List[Event], personal: bool) -> List[Event]:
 
 def load_category_df(events: List[Event]):
     tss = {}
-    all_categories = list(set(t for e in events for t in e.data["$tags"]))
+    all_categories = list({t for e in events for t in e.data["$tags"]})
     for cat in all_categories:
         try:
             tss[cat] = categorytime_per_day(events, cat)

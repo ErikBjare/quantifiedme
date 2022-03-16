@@ -48,7 +48,7 @@ class DuplicateFilter:
 def load_df(events: List[Event] = None) -> pd.DataFrame:
     if events is None:
         events = load_events()
-    events = [e for e in events]
+    events = list(events)
 
     with DuplicateFilter(logger):
         for e in events:
@@ -75,12 +75,12 @@ def load_df(events: List[Event] = None) -> pd.DataFrame:
                 "date": (e.timestamp - date_offset).date(),
                 "substance": e.data.get("substance"),
                 "dose": e.data.get("amount_pint") or 0,
-                # FIXME: Only supports one tag
-                "tag": list(sorted(e.data.get("tags") or set(["none"])))[0],
+                "tag": list(sorted(e.data.get("tags") or {"none"}))[0],
             }
             for e in events
         ]
     )
+
 
     # Replace NaN with mean of non-zero doses
     for substance in set(df["substance"]):
@@ -99,7 +99,7 @@ def to_series(df: pd.DataFrame, tag: str = None, substance: str = None) -> pd.Se
     """
     assert tag or substance
     key = "tag" if tag else "substance"
-    val = tag if tag else substance
+    val = tag or substance
 
     # Filter for the tag/substance we want
     df = df[df[key] == val]
@@ -133,7 +133,7 @@ def to_df_daily(events: List[Event]):
     for tag in tags:
         df[f"tag:{tag}"] = to_series(df_src, tag=tag)
 
-    substances = set(s for s in df_src["substance"] if s)
+    substances = {s for s in df_src["substance"] if s}
     for subst in substances:
         colname = subst.lower().replace("-", "").replace(" ", "")
         df[colname] = to_series(df_src, substance=subst)
@@ -143,8 +143,9 @@ def _missing_dates():
     # Useful helper function to find dates without any entries
     df = load_df()
     dates_with_entries = sorted(
-        set((d + timedelta(hours=-4)).date() for d in df["timestamp"])
+        {(d + timedelta(hours=-4)).date() for d in df["timestamp"]}
     )
+
     all_dates = sorted(
         d.date()
         for d in pd.date_range(min(dates_with_entries), max(dates_with_entries))

@@ -10,34 +10,34 @@ packages = [
 
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.9, <3.11"  # scipy has a <3.11 constraint
 aw-core = "^0.5" 
 aw-client = "^0.5" 
 aw_research = {git = "https://github.com/ActivityWatch/aw-research.git"}
 #aw_research = {path = "/home/erb/Programming/activitywatch/other/aw-research", develop=true}
 qslang = {path = "./QSlang", develop=true}
 numpy = "*"
-scipy = "*"
+scipy = ">=1.8"
 #bottleneck = "1.2.3"
 pandas = "*"
-pandas-profiling = "^3.1"
+pandas-profiling = "*"
 matplotlib = "*"
-#calmap = "*"
+calplot = "^0.1"  # fork of calmap
 joblib = "*"
 tabulate = "*"
 pint = "*"
 toml = "*"
-togglcli = "^2.2"
+togglcli = "*"
 #togglcli = {path = "vendor/toggl-cli"}
-statsmodels = "^0.13.1"
-types-click = "^0.1.14"
-types-toml = "^0.1.1"
-influxdb-client = {version = "^1.24.0", optional = true}
+statsmodels = "*"
+types-click = "*"
+types-toml = "*"
+influxdb-client = {version = "*", optional = true}
 
 [tool.poetry.dev-dependencies]
 jupyterlab = "*"
 ipykernel = "*"
-pytest = "^6.0"
+pytest = "*"
 pytest-cov = "*"
 flake8 = "*"
 mypy = "*"

@@ -13,12 +13,10 @@ logging.getLogger("toggl.utils").setLevel(logging.WARNING)
 
 
 def load_toggl(start: datetime, stop: datetime) -> List[Event]:
-    # The Toggl API has a query limit of 1 year
     if stop - start < timedelta(days=360):
         return _load_toggl(start, stop)
-    else:
-        split = stop - timedelta(days=360)
-        return load_toggl(start, split) + _load_toggl(split, stop)
+    split = stop - timedelta(days=360)
+    return load_toggl(start, split) + _load_toggl(split, stop)
 
 
 def _load_toggl(start: datetime, stop: datetime) -> List[Event]:
@@ -31,7 +29,7 @@ def _load_toggl(start: datetime, stop: datetime) -> List[Event]:
         workspaces = list(api.Workspace.objects.all())
         print(workspaces)
         print([w.id for w in workspaces])
-        print(f"Found {len(workspaces)} workspaces: {list(w.name for w in workspaces)}")
+        print(f"Found {len(workspaces)} workspaces: {[w.name for w in workspaces]}")
         entries: List[dict] = [
             e.to_dict()
             for workspace in workspaces

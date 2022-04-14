@@ -33,8 +33,7 @@ def copy_bucket_to_influxdb(aw: ActivityWatchClient, bucket_id: str):
 def init_influxdb():
     print("Creating bucket")
     bucket_api = client.buckets_api()
-    existing_bucket = bucket_api.find_bucket_by_name(bucket_name_influx)
-    if existing_bucket:
+    if existing_bucket := bucket_api.find_bucket_by_name(bucket_name_influx):
         print("Bucket already existed, replacing")
         bucket_api.delete_bucket(existing_bucket)
     bucket_api.create_bucket(bucket_name=bucket_name_influx)
@@ -67,5 +66,5 @@ def send_events_to_influxdb(events: list[Event], bucket_id_aw: str):
 if __name__ == "__main__":
     init_influxdb()
     aw = ActivityWatchClient(testing=True)
-    copy_bucket_to_influxdb(aw, "aw-watcher-afk_" + hostname)
-    copy_bucket_to_influxdb(aw, "aw-watcher-window_" + hostname)
+    copy_bucket_to_influxdb(aw, f"aw-watcher-afk_{hostname}")
+    copy_bucket_to_influxdb(aw, f"aw-watcher-window_{hostname}")

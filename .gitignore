@@ -1,17 +1,31 @@
-.*cache
-.coverage
-.ipynb_checkpoints
-aw-research
+# cache
 __pycache__
+.*cache
+
+# ipynb
+.ipynb_checkpoints
 *.ipynb
-*.html
-data
-personal
-**.egg-info
+
+# local config
 config.toml
-.vscode
 .venv
 .env
 
+# editor-specific
+.vscode
+
+# data
+data
+personal
+
+# generated
+*.html
+
+# artifacts
+dist
+**.egg-info
+
+# coverage
 htmlcov
 coverage.xml
+.coverage

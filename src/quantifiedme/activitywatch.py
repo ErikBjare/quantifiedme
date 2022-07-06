@@ -12,16 +12,13 @@ import numpy as np
 import click
 
 from aw_core import Event
+from aw_client import ActivityWatchClient
 from aw_transform.union_no_overlap import union_no_overlap
 
 import aw_research
 import aw_research.classify
 from aw_research import verify_no_overlap, split_into_weeks
-from aw_research import (
-    split_event_on_hour,
-    categorytime_per_day,
-    categorytime_during_day,
-)
+from aw_research import categorytime_per_day
 
 from .load_toggl import load_toggl
 
@@ -126,6 +123,7 @@ def load_complete_timeline(
     personal: bool,
     testing: bool = False,
     cache: bool = True,
+    awc: ActivityWatchClient = None,
 ):
     now = datetime.now(tz=timezone.utc)
 
@@ -147,6 +145,8 @@ def load_complete_timeline(
     events: List[Event] = []
 
     if "activitywatch" in datasources:
+        if awc is None:
+            awc = ActivityWatchClient(testing=testing)
         for hostname in hostnames:
             logger.info(f"Getting events for {hostname}...")
             # Split up into previous days and today, to take advantage of caching
@@ -155,12 +155,12 @@ def load_complete_timeline(
             events_aw: List[Event] = []
             for dtstart, dtend in split_into_weeks(since, now):
                 events_aw += aw_research.classify.get_events(
+                    awc,
                     hostname,
                     since=dtstart,
                     end=dtend,
                     include_smartertime=False,
                     include_toggl=False,
-                    testing=testing,
                 )
                 logger.debug(f"{len(events_aw)} events retreived")
             for e in events_aw:

@@ -13,7 +13,7 @@ def load_data():
     return data
 
 
-def load_sleep_df():
+def load_sleep_df() -> pd.DataFrame:
     data = load_data()
     df = pd.DataFrame(data["sleep"])
     df["summary_date"] = pd.to_datetime(df["summary_date"])
@@ -21,7 +21,7 @@ def load_sleep_df():
     return df
 
 
-def load_readiness_df():
+def load_readiness_df() -> pd.DataFrame:
     data = load_data()
     df = pd.DataFrame(data["readiness"])
     df["summary_date"] = pd.to_datetime(df["summary_date"])
@@ -29,7 +29,7 @@ def load_readiness_df():
     return df
 
 
-def load_activity_df():
+def load_activity_df() -> pd.DataFrame:
     data = load_data()
     df = pd.DataFrame(data["activity"])
     df["summary_date"] = pd.to_datetime(df["summary_date"])

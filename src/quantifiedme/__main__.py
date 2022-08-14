@@ -3,7 +3,7 @@ import click
 from .location import locate
 from .habitbull import habits
 from .activitywatch import activitywatch
-from .qslang import qslang
+from .qslang import main as qslang
 from .oura import oura
 
 

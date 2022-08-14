@@ -1,3 +1,6 @@
+# today
+date := $(shell date +%Y-%m-%d)
+
 all: notebooks
 
 notebooks: notebooks/output/Dashboard.html

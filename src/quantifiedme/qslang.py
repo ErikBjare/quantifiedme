@@ -7,8 +7,8 @@ import numpy as np
 from joblib import Memory
 import pint
 
-from aw_core import Event
-from qslang.main import qslang as qslang_entry, load_events
+from qslang import Event
+from qslang.main import main as qslang_main, load_events
 from .config import load_config
 
 logger = logging.getLogger(__name__)
@@ -154,9 +154,9 @@ def _missing_dates():
 
 
 # Entrypoint
-qslang = qslang_entry
+main = qslang_main
 
 
 if __name__ == "__main__":
     _missing_dates()
-    # qslang()
+    # main()

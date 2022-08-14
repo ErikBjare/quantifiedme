@@ -1,7 +1,7 @@
 import click
 import pandas as pd
 import matplotlib.pyplot as plt
-import calmap
+import calplot
 
 from .config import load_config
 
@@ -19,9 +19,9 @@ def plot_calendar(df, habitname, show=True, year=None):
     df = df[df.index.get_level_values("HabitName").isin([habitname])].reset_index()
     df = df.set_index(pd.DatetimeIndex(df["CalendarDate"]))
     if year:
-        calmap.yearplot(df["Value"], year=year)
+        calplot.yearplot(df["Value"], year=year)
     else:
-        calmap.calendarplot(df["Value"])
+        calplot.calendarplot(df["Value"])
     if show:
         plt.show()
 

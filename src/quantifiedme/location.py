@@ -15,7 +15,7 @@ from .config import load_config
 memory = joblib.Memory(".cache/joblib")
 
 
-def location_history_to_df(fn):
+def location_history_to_df(fn) -> pd.DataFrame:
     with open(fn, "r") as f:
         locs = json.load(f)["locations"]
     for loc in locs:
@@ -25,9 +25,11 @@ def location_history_to_df(fn):
         for p in ["velocity", "verticalAccuracy", "altitude", "activity", "heading"]:
             if p in loc:
                 loc.pop(p)
-    df = pd.DataFrame(locs).set_index("timestamp")
+    df = pd.DataFrame(locs)
+    # no idea why this is typed as None, needing the type-ignore on next lint
+    df = df.set_index("timestamp")
     # Remove duplicates in index
-    df = df[~df.index.duplicated(keep="first")]
+    df = df[~df.index.duplicated(keep="first")]  # type: ignore
     df = df.resample("10Min").ffill()
     return df
 
@@ -62,7 +64,7 @@ def colocate(df_person1, df_person2, verbose=False):
 
 def _proximity_to_location(
     df: pd.DataFrame, loc: Tuple[float, float], threshold_radius=0.001, verbose=False
-):
+) -> pd.Series:
     lat, lon = loc
     dist = ((df["lat"] - lat) ** 2 + (df["long"] - lon) ** 2) ** 0.5
     dist = dist[dist < threshold_radius]
@@ -74,7 +76,7 @@ def _proximity_to_location(
     return dist["duration"]
 
 
-def plot_df_duration(df, title, save: str = None):
+def plot_df_duration(df, title, save: str = None) -> None:
     # print('Plotting...')
     ax = df.plot.area(label=f"{title}", legend=True)
     ax = df.rolling(7, min_periods=2).mean().plot(label=f"{title} 7d SMA", legend=True)

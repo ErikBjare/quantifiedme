@@ -10,17 +10,24 @@ YEAR := $(shell date +%Y)
 
 build: $(OUT_FILES) output/index.html
 
+clean-cache:
+	rm -rf .cache
+	# if personal/.cache exists, delete it
+	[ -d personal/.cache ] && rm -rf personal/.cache
+
 .PHONY: output/index.html
 output/index.html:
 	@echo -e "<html><head><title>QuantifiedMe Index</title></head>" > $@
 	@echo -e "<body><h2>Index of notebooks</h2><table>" >> $@
-	@echo -e "<thead><th>Notebook</th><th>Age</th><th>Errors</th><th>Warnings</th></thead>" >> $@
+	@echo -e "<thead><th>Notebook</th><th>Age</th><th>Errors</th><th>Warnings</th><th>Last updated</th></thead>" >> $@
 	@# if built then include modifed time
+	@# TODO: Compute AGE with JS from LAST_UPDATED instead
 	@for i in $(patsubst output/%,%,$(patsubst output/personal/%,%,$(OUT_FILES))); do \
 		echo -e '<tr>' >> $@; \
 		echo -e "<td><a href='$$i' target="_blank">$(basename $$i)</a></td>" >> $@; \
 		if [ -f output/$$i ]; then \
-			AGE=$$(($$(date +%s) - $$(date +%s -r output/$$i))); \
+			LAST_UPDATED=$$(date +%s -r output/$$i); \
+			AGE=$$(($$(date +%s) - $$LAST_UPDATED)); \
 			echo -e "<td>$$AGE s ago</td>" >> $@; \
 			ERRORS=$$(grep 'error' --ignore-case output/$$i | wc -l); \
 			ERRORS=$$(($$ERRORS - 20)); \
@@ -36,6 +43,7 @@ output/index.html:
 			else \
 				echo -e "<td>$$WARNINGS</td>" >> $@; \
 			fi; \
+			echo -e "<td>$$(date '+%Y-%m-%d %H:%M' -r output/$$i)</td>" >> $@; \
 		else \
 			echo -e "<td>Not built</td>" >> $@; \
 		fi; \

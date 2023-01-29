@@ -15,9 +15,8 @@ quantifiedme = "quantifiedme.main:main"
 python = "^3.10, <3.12"  # scipy has a <3.12 constraint
 aw-core = "^0.5"
 aw-client = "^0.5"
-#aw_research = {git = "https://github.com/ActivityWatch/aw-research.git"}
-#aw_research = {path = "/home/erb/Programming/activitywatch/other/aw-research", develop=true}
-aw_research = {path = "/Users/erb/Programming/activitywatch/other/aw-research", develop=true}
+aw_research = {git = "https://github.com/ActivityWatch/aw-research.git"}
+#aw_research = {path = "/Users/erb/Programming/activitywatch/other/aw-research", develop=true}
 qslang = {path = "./QSlang", develop=true}
 numpy = "*"
 scipy = ">=1.8"

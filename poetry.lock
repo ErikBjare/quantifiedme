@@ -157,7 +157,7 @@ description = ""
 category = "main"
 optional = false
 python-versions = "^3.8"
-develop = true
+develop = false
 
 [package.dependencies]
 aw-client = "^0.5"
@@ -174,8 +174,10 @@ tabulate = "*"
 toml = "*"
 
 [package.source]
-type = "directory"
-url = "../activitywatch/other/aw-research"
+type = "git"
+url = "https://github.com/ActivityWatch/aw-research.git"
+reference = "HEAD"
+resolved_reference = "79d8498e1d2f5eab8f5f61c3caf0d04e2e70ec59"
 
 [[package]]
 name = "babel"
@@ -2666,7 +2668,7 @@ dev = ["black (>=19.3b0)", "pytest (>=4.6.2)"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10, <3.12"  # scipy has a <3.12 constraint
-content-hash = "f34524a40227cac848b7c47accd0f00580389573177e58eb766ff1dc364cbb30"
+content-hash = "bd2911a38488f7d9dbd46501bd3c5eb7e7f1976801e298ac82c4a5e38b7a314c"
 
 [metadata.files]
 ansicon = [

@@ -13,6 +13,7 @@ config.toml
 
 # editor-specific
 .vscode
+*.code-workspace
 
 # data
 data

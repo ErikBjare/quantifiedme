@@ -15,7 +15,7 @@ env["PIPENV_IGNORE_VIRTUALENVS"] = "1"
 
 
 def _read_qslang_cats():
-    with open("./data/substance-categories.txt", "r") as f:
+    with open("./data/substance-categories.txt") as f:
         return [l.strip() for l in f.readlines()]
 
 
@@ -23,7 +23,7 @@ qslang_cats = _read_qslang_cats()
 
 
 def _read_people_colocate():
-    with open("./data/people-colocate.txt", "r") as f:
+    with open("./data/people-colocate.txt") as f:
         return [l.strip() for l in f.readlines()]
 
 
@@ -114,7 +114,7 @@ def _read_metadata():
     metadata = {}
     for filepath in glob.glob(".cache/*.json"):
         name = filepath.split("/")[-1].rstrip(".json")
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             metadata[name] = json.load(f)
     return metadata
 

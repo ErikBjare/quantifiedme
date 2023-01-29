@@ -1,5 +1,4 @@
 import logging
-from typing import List
 from datetime import timedelta
 
 import pandas as pd
@@ -45,7 +44,7 @@ class DuplicateFilter:
 
 
 @memory.cache
-def load_df(events: List[Event] = None) -> pd.DataFrame:
+def load_df(events: list[Event] | None = None) -> pd.DataFrame:
     if events is None:
         events = load_events()
     events = [e for e in events]
@@ -76,7 +75,7 @@ def load_df(events: List[Event] = None) -> pd.DataFrame:
                 "substance": e.data.get("substance"),
                 "dose": e.data.get("amount_pint") or 0,
                 # FIXME: Only supports one tag
-                "tag": list(sorted(e.data.get("tags") or set(["none"])))[0],
+                "tag": list(sorted(e.data.get("tags") or {"none"}))[0],
             }
             for e in events
         ]
@@ -92,7 +91,9 @@ def load_df(events: List[Event] = None) -> pd.DataFrame:
     return df
 
 
-def to_series(df: pd.DataFrame, tag: str = None, substance: str = None) -> pd.Series:
+def to_series(
+    df: pd.DataFrame, tag: str | None = None, substance: str | None = None
+) -> pd.Series:
     """
     Takes a dataframe with multiple dose events and returns a date series with the
     total daily dose (if substance specified) or the daily count of doses (if tag specified).
@@ -124,7 +125,7 @@ def to_series(df: pd.DataFrame, tag: str = None, substance: str = None) -> pd.Se
     return series
 
 
-def to_df_daily(events: List[Event]):
+def to_df_daily(events: list[Event]):
     """Returns a daily dataframe"""
     df_src = load_df(events)
     df = pd.DataFrame()
@@ -133,7 +134,7 @@ def to_df_daily(events: List[Event]):
     for tag in tags:
         df[f"tag:{tag}"] = to_series(df_src, tag=tag)
 
-    substances = set(s for s in df_src["substance"] if s)
+    substances = {s for s in df_src["substance"] if s}
     for subst in substances:
         colname = subst.lower().replace("-", "").replace(" ", "")
         df[colname] = to_series(df_src, substance=subst)
@@ -143,7 +144,7 @@ def _missing_dates():
     # Useful helper function to find dates without any entries
     df = load_df()
     dates_with_entries = sorted(
-        set((d + timedelta(hours=-4)).date() for d in df["timestamp"])
+        {(d + timedelta(hours=-4)).date() for d in df["timestamp"]}
     )
     all_dates = sorted(
         d.date()

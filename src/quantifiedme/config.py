@@ -1,4 +1,5 @@
-from typing import MutableMapping, Any
+from typing import Any
+from collections.abc import MutableMapping
 from pathlib import Path
 import logging
 

@@ -40,7 +40,7 @@ nbval = "^0.9.6"
 pytest-xdist = "^2.5.0"
 pytest-cov = "^3.0.0"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 jupyterlab = "*"
 ipykernel = "*"
 pytest = "*"
@@ -50,6 +50,7 @@ flake8 = "*"
 mypy = "*"
 black = "*"
 ipympl = "*"
+pyupgrade = "^3.3.1"
 
 [tool.pytest.ini_options]
 minversion = "6.0"

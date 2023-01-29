@@ -5,14 +5,19 @@ from pathlib import Path
 import pandas as pd
 import json
 
+
 def _load_heartrate_file(filepath):
     print(f"Loading {filepath}...")
     with open(filepath) as f:
         data = json.load(f)
-        df = pd.DataFrame([(entry["dateTime"], entry["value"]["bpm"]) for entry in data], columns=["timestamp", "bpm"])
+        df = pd.DataFrame(
+            [(entry["dateTime"], entry["value"]["bpm"]) for entry in data],
+            columns=["timestamp", "bpm"],
+        )
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
         df = df.set_index("timestamp")
         return df
+
 
 def load_heartrate_df() -> pd.DataFrame:
     # load heartrate data from Fitbit export
@@ -29,6 +34,7 @@ def load_heartrate_df() -> pd.DataFrame:
     # load each file into a dataframe
     # parallelize to speed up the process
     import multiprocessing
+
     pool = multiprocessing.Pool(20)
     dfs = pool.map(_load_heartrate_file, sorted(files))
 
@@ -43,4 +49,5 @@ if __name__ == "__main__":
     print(df)
     df.plot()
     import matplotlib.pyplot as plt
+
     plt.show()

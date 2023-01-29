@@ -30,7 +30,7 @@ def plot_calendar(df, habitname, show=True, year=None):
 @click.command()
 @click.argument("habitname", required=False)
 @click.option("--year", default=None, type=int)
-def habits(habitname: str = None, year: int = None):
+def habits(habitname: str | None = None, year: int | None = None):
     """Plot a habit calendar."""
     df = load_df()
     if habitname:

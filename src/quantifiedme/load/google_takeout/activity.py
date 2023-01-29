@@ -12,7 +12,7 @@ def load_activity_history() -> pd.DataFrame:
     """
     config = load_config()
     activity_file = config["data"]["google_takeout"]["activity"]
-    with open(activity_file, "r") as f:
+    with open(activity_file) as f:
         activity = pd.DataFrame(json.load(f))
 
     activity["time"] = pd.to_datetime(activity["time"])

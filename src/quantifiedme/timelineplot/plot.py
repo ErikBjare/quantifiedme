@@ -1,5 +1,6 @@
 import sys
-from typing import List, Callable, Iterable, Union, TypeVar, Tuple
+from typing import TypeVar, Union
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -7,18 +8,17 @@ import matplotlib.pyplot as plt
 
 from .util import take_until_next
 
-
 T = TypeVar("T")
-Color = Union[str, Tuple[float, float, float]]
+Color = Union[str | tuple[float, float, float]]
 Index = TypeVar("Index", int, datetime)
-Limits = Tuple[Index, Index]
-Event = Tuple[Limits, Color, str]
+Limits = tuple[Index, Index]
+Event = tuple[Limits, Color, str]
 
 
 @dataclass
 class Bar:
     title: str
-    events: List[Event]
+    events: list[Event]
     show_label: bool
 
 
@@ -28,7 +28,7 @@ class TimelineFigure:
         self.ax = plt.gca()
         if title:
             self.ax.set_title(title)
-        self.bars: List[Bar] = []
+        self.bars: list[Bar] = []
 
     def plot(self):
         # We're assuming all bars share the same index type
@@ -74,7 +74,7 @@ class TimelineFigure:
 
         plt.show()
 
-    def add_bar(self, events: List[Event], title: str, show_label: bool = False):
+    def add_bar(self, events: list[Event], title: str, show_label: bool = False):
         self.bars.append(Bar(title, events, show_label))
 
     def add_chunked(

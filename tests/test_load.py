@@ -6,6 +6,15 @@ from aw_core import Event
 
 from quantifiedme.config import has_config
 from quantifiedme.load.qslang import load_df, to_series
+from quantifiedme.load.activitywatch import load_complete_timeline, load_category_df
+from quantifiedme.load.toggl import load_toggl
+from quantifiedme.load.habitbull import load_df as load_habitbull_df
+from quantifiedme.load.location import load_all_dfs
+from quantifiedme.load.oura import (
+    load_sleep_df,
+    load_activity_df,
+    load_readiness_df,
+)
 
 now = datetime.now(tz=timezone.utc)
 
@@ -59,8 +68,6 @@ def test_qslang_unknown_dose():
 
 
 def test_load_activitywatch():
-    from quantifiedme.activitywatch import load_complete_timeline, load_category_df
-
     events = load_complete_timeline(
         datetime.now(tz=timezone.utc) - timedelta(days=90),
         datasources=["fake"],
@@ -72,7 +79,6 @@ def test_load_activitywatch():
 
 def test_load_toggl():
     pytest.skip("Broken")
-    from quantifiedme.load.toggl import load_toggl
 
     now = datetime.now(tz=timezone.utc)
     events = load_toggl(now - timedelta(days=90), now)
@@ -83,22 +89,16 @@ def test_load_toggl():
 
 @pytest.mark.skipif(not has_config(), reason="no config available for test data")
 def test_load_location():
-    from quantifiedme.location import load_all_dfs
-
     assert load_all_dfs()
 
 
 @pytest.mark.skipif(not has_config(), reason="no config available for test data")
 def test_load_habitbull():
-    from quantifiedme.load.habitbull import load_df
-
-    assert not load_df().empty
+    assert not load_habitbull_df().empty
 
 
 @pytest.mark.skipif(not has_config(), reason="no config available for test data")
 def test_load_oura():
-    from quantifiedme.load.oura import load_sleep_df, load_activity_df, load_readiness_df
-
     assert not load_sleep_df().empty
 
     activity_df = load_activity_df()

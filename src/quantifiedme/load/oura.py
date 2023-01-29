@@ -1,10 +1,11 @@
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 
-import dateutil
 import click
 import pandas as pd
+import iso8601
+import matplotlib.pyplot as plt
 
 from ..config import load_config
 
@@ -40,22 +41,39 @@ def load_activity_df() -> pd.DataFrame:
     df = df.set_index("summary_date")
     return df
 
+
 def load_heartrate_df() -> pd.DataFrame:
     # new data format
     filepath = load_config()["data"]["oura-heartrate"]
     filepath = Path(filepath).expanduser()
     with open(filepath) as f:
         raw = json.load(f)
-        data_heartrate = [(dateutil.parser.isoparse(entry["timestamp"]), entry["bpm"]) for entry in raw["heart_rate"]]
+        data_heartrate = [
+            (iso8601.parse_date(entry["timestamp"]), entry["bpm"])
+            for entry in raw["heart_rate"]
+        ]
         df = pd.DataFrame(data_heartrate, columns=["timestamp", "bpm"])
-    
+
     filepath = load_config()["data"]["oura-sleep"]
     filepath = Path(filepath).expanduser()
     with open(filepath) as f:
         raw = json.load(f)
-        nights_hr = [(entry["bedtime_start"], entry["heart_rate"]["items"], entry["heart_rate"]["interval"])for entry in raw["sleep"]]
-        data_heartrate_sleep = [(dateutil.parser.isoparse(start) + i * timedelta(seconds=interval), bpm) for (start, bpms, interval) in nights_hr for (i, bpm) in enumerate(bpms)]
-        df_heartrate_sleep = pd.DataFrame(data_heartrate_sleep, columns=["timestamp", "bpm"])
+        nights_hr = [
+            (
+                entry["bedtime_start"],
+                entry["heart_rate"]["items"],
+                entry["heart_rate"]["interval"],
+            )
+            for entry in raw["sleep"]
+        ]
+        data_heartrate_sleep = [
+            (iso8601.parse_date(start) + i * timedelta(seconds=interval), bpm)
+            for (start, bpms, interval) in nights_hr
+            for (i, bpm) in enumerate(bpms)
+        ]
+        df_heartrate_sleep = pd.DataFrame(
+            data_heartrate_sleep, columns=["timestamp", "bpm"]
+        )
 
     df = df.combine_first(df_heartrate_sleep)
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
@@ -64,7 +82,6 @@ def load_heartrate_df() -> pd.DataFrame:
     df = df[df["bpm"] > 0]
 
     return df
-
 
 
 @click.command()
@@ -76,7 +93,6 @@ def oura():
 
 
 if __name__ == "__main__":
-    #oura()
+    # oura()
     load_heartrate_df().plot(kind="line", y="bpm", figsize=(20, 10))
-    from matplotlib.pyplot import show
-    show()
+    plt.show()

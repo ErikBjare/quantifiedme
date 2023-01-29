@@ -2,7 +2,7 @@
 Much of this taken from the QuantifiedMe notebook
 """
 
-from typing import List, Iterable, Dict
+from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
 import logging
 import random
@@ -76,7 +76,7 @@ def create_fake_events(start: datetime, end: datetime) -> Iterable[Event]:
             yield Event(timestamp=timestamp, duration=duration, data=data)
 
 
-def _load_smartertime_devices(since: datetime) -> Dict[str, List]:
+def _load_smartertime_devices(since: datetime) -> dict[str, list]:
     result = {}
     for hostname, smartertime_awbucket_path in load_config()["data"][
         "smartertime_buckets"
@@ -91,16 +91,16 @@ def _load_smartertime_devices(since: datetime) -> Dict[str, List]:
     return result
 
 
-def load_smartertime(since: datetime) -> List[Event]:
-    events_smartertime: List[Event] = []
+def load_smartertime(since: datetime) -> list[Event]:
+    events_smartertime: list[Event] = []
     for hostname, events in _load_smartertime_devices(since).items():
         events_smartertime = union_no_overlap(events_smartertime, events)
     return events_smartertime
 
 
 def _join_events(
-    old_events: List[Event], new_events: List[Event], source: str
-) -> List[Event]:
+    old_events: list[Event], new_events: list[Event], source: str
+) -> list[Event]:
     if not new_events:
         logger.info(f"No events found from {source}, continuing...")
         return old_events
@@ -120,12 +120,12 @@ def _join_events(
 
 def load_complete_timeline(
     since: datetime,
-    datasources: List[str],
-    hostnames: List[str],
+    datasources: list[str],
+    hostnames: list[str],
     personal: bool,
     testing: bool = False,
     cache: bool = True,
-    awc: ActivityWatchClient = None,
+    awc: ActivityWatchClient | None = None,
 ):
     now = datetime.now(tz=timezone.utc)
 
@@ -144,7 +144,7 @@ def load_complete_timeline(
     for source in datasources:
         assert source in ["activitywatch", "smartertime", "fake", "toggl"]
 
-    events: List[Event] = []
+    events: list[Event] = []
 
     if "activitywatch" in datasources:
         if awc is None:
@@ -154,7 +154,7 @@ def load_complete_timeline(
             # Split up into previous days and today, to take advantage of caching
             # TODO: Split up into whole days
             # TODO: Use `aw_client.queries.canonicalQuery` instead
-            events_aw: List[Event] = []
+            events_aw: list[Event] = []
             for dtstart, dtend in split_into_weeks(since, now):
                 events_aw += aw_research.classify.get_events(
                     awc,
@@ -201,7 +201,7 @@ def load_complete_timeline(
     return events
 
 
-def classify(events: List[Event], personal: bool) -> List[Event]:
+def classify(events: list[Event], personal: bool) -> list[Event]:
     # TODO: Move to example config.toml
     classes = [
         # (Social) Media
@@ -242,9 +242,9 @@ def classify(events: List[Event], personal: bool) -> List[Event]:
     return events
 
 
-def load_category_df(events: List[Event]):
+def load_category_df(events: list[Event]):
     tss = {}
-    all_categories = list(set(t for e in events for t in e.data["$tags"]))
+    all_categories = list({t for e in events for t in e.data["$tags"]})
     for cat in all_categories:
         try:
             tss[cat] = categorytime_per_day(events, cat)
@@ -259,7 +259,13 @@ def load_category_df(events: List[Event]):
 @click.command()
 def activitywatch():
     """Load complete timeline and print total duration"""
-    events = load_complete_timeline(datetime.now(tz=timezone.utc) - timedelta(days=90))
+    # TODO: Get hostname parameters from config
+    events = load_complete_timeline(
+        since=datetime.now(tz=timezone.utc) - timedelta(days=90),
+        datasources=["activitywatch"],
+        hostnames=["erb-main2-arch", "erb-m2.localdomain"],
+        personal=True,
+    )
     print(f"Total duration: {sum((e.duration for e in events), timedelta(0))}")
 
     print(load_category_df(events))

@@ -1,11 +1,12 @@
-from typing import Iterable, Tuple, Generator, TypeVar
+from typing import Tuple, TypeVar
+from collections.abc import Iterable, Generator
 
 T = TypeVar("T")
 
 
 def take_until_next(
     ls: Iterable[T],
-) -> Generator[Tuple[Tuple[int, int], T], None, None]:
+) -> Generator[tuple[tuple[int, int], T], None, None]:
     """
     Given an iterable with duplicate entries, chunk them together and return
     each chunk with its start and stop index.

@@ -24,7 +24,13 @@ test:
 	poetry run python3 -m pytest tests/
 
 typecheck:
-	poetry run mypy --ignore-missing-imports src/quantifiedme tests
+	poetry run mypy --ignore-missing-imports --check-untyped-defs src/quantifiedme tests
+
+precommit:
+	make fmt
+	poetry run pyupgrade --py310-plus src/quantifiedme/**.py
+	make typecheck
+	make test
 
 jupyter:
 	# From: https://stackoverflow.com/a/47296960/965332

@@ -22,6 +22,7 @@ def load_config() -> MutableMapping[str, Any]:
         logger.warning("No config found, falling back to example config")
         filepath = Path(rootdir) / "config.example.toml"
     with open(filepath) as f:
+        logger.info("Loading config from %s", filepath)
         return toml.load(f)
 
 

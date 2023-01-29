@@ -5,7 +5,7 @@ import pytest
 from aw_core import Event
 
 from quantifiedme.config import has_config
-from quantifiedme.qslang import load_df, to_series
+from quantifiedme.load.qslang import load_df, to_series
 
 now = datetime.now(tz=timezone.utc)
 
@@ -72,7 +72,7 @@ def test_load_activitywatch():
 
 def test_load_toggl():
     pytest.skip("Broken")
-    from quantifiedme.load_toggl import load_toggl
+    from quantifiedme.load.toggl import load_toggl
 
     now = datetime.now(tz=timezone.utc)
     events = load_toggl(now - timedelta(days=90), now)
@@ -90,14 +90,14 @@ def test_load_location():
 
 @pytest.mark.skipif(not has_config(), reason="no config available for test data")
 def test_load_habitbull():
-    from quantifiedme.habitbull import load_df
+    from quantifiedme.load.habitbull import load_df
 
     assert not load_df().empty
 
 
 @pytest.mark.skipif(not has_config(), reason="no config available for test data")
 def test_load_oura():
-    from quantifiedme.oura import load_sleep_df, load_activity_df, load_readiness_df
+    from quantifiedme.load.oura import load_sleep_df, load_activity_df, load_readiness_df
 
     assert not load_sleep_df().empty
 

@@ -9,7 +9,7 @@ import pint
 
 from qslang import Event
 from qslang.main import main as qslang_main, load_events
-from .config import load_config
+from ..config import load_config
 
 logger = logging.getLogger(__name__)
 

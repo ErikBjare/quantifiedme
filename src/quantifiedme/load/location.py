@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import joblib
 
-from .config import load_config
+from ..config import load_config
 
 memory = joblib.Memory(".cache/joblib")
 
@@ -37,7 +37,7 @@ def location_history_to_df(fn) -> pd.DataFrame:
 @memory.cache
 def load_all_dfs() -> Dict[str, pd.DataFrame]:
     dfs = {}
-    path = load_config()["data"]["location"]
+    path = str(Path(load_config()["data"]["location"]).expanduser())
     for filepath in glob.glob(path + "/*.json"):
         name = Path(filepath).name.replace(".json", "")
         df = location_history_to_df(filepath)
@@ -122,9 +122,9 @@ def main_plot(dfs, me, other, start=None, save=None):
 @click.option("--start", default=None, type=click.DateTime(), help="query from date")
 @click.option("--save", is_flag=True)
 def locate(name: str, start: datetime, save: bool):
-    # TODO: Pick up from config file
-    me = "erik"
-
+    """Plot of when your location was proximate to some location NAME"""
+    me = load_config()["me"]["name"]
+    
     dfs = load_all_dfs()
     df = dfs[me]
 

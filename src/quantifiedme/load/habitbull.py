@@ -2,13 +2,14 @@ import click
 import pandas as pd
 import matplotlib.pyplot as plt
 import calplot
+from pathlib import Path
 
-from .config import load_config
+from ..config import load_config
 
 
 def load_df():
     filename = load_config()["data"]["habitbull"]
-    df = pd.read_csv(filename, parse_dates=True)
+    df = pd.read_csv(Path(filename).expanduser(), parse_dates=True)
     del df["HabitDescription"]
     del df["HabitCategory"]
     df = df.set_index(["CalendarDate", "HabitName"]).sort_index()
@@ -30,6 +31,7 @@ def plot_calendar(df, habitname, show=True, year=None):
 @click.argument("habitname", required=False)
 @click.option("--year", default=None, type=int)
 def habits(habitname: str = None, year: int = None):
+    """Plot a habit calendar."""
     df = load_df()
     if habitname:
         plot_calendar(df, habitname, year=year)

@@ -13,9 +13,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9']
+        python-version: ['3.10']
         aw-server: ["aw-server", "aw-server-rust"]
-        aw-version: ["v0.11.0"]
+        aw-version: ["v0.12.1"]
 
     steps:
     - uses: actions/checkout@v2
@@ -50,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9']
+        python-version: ['3.10']
 
     steps:
     - uses: actions/checkout@v2
@@ -70,20 +70,17 @@ jobs:
     - name: Run typecheck
       run: |
         make typecheck
-     
+
   notebooks:
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
-        #python-version: ['3.9']
-        #aw-server: ["aw-server", "aw-server-rust"]
-        #aw-version: ["v0.10.0"]
         include:
-        - python-version: '3.9'
+        - python-version: '3.10'
           aw-server: "aw-server-rust"
-          aw-version: "master" 
+          aw-version: "master"
 
     steps:
     - uses: actions/checkout@v2
@@ -102,7 +99,7 @@ jobs:
         aw-version: ${{ matrix.aw-version }}
         aw-testing: false
         fakedata: true
-    
+
     - name: Download aw-server-rust nightly
       uses: dawidd6/action-download-artifact@v2
       if: ${{ matrix.aw-server == 'aw-server-rust' && matrix.aw-version == 'master' }}
@@ -129,7 +126,7 @@ jobs:
       run: |
         chmod +x ./aw-server-rust/debug/aw-server
         ./aw-server-rust/debug/aw-server &
-    
+
     - name: Insert fake data into aw-server-rust  # aw-server will have it handled by the action
       shell: bash
       if: ${{ matrix.aw-server == 'aw-server-rust' && matrix.aw-version == 'master' }}

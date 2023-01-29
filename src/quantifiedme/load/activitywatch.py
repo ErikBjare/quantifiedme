@@ -20,9 +20,11 @@ import aw_research.classify
 from aw_research import verify_no_overlap, split_into_weeks
 from aw_research import categorytime_per_day
 
-from .load_toggl import load_toggl
+from .toggl import load_toggl
 
-from .config import load_config
+from ..config import load_config
+
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +82,7 @@ def _load_smartertime_devices(since: datetime) -> Dict[str, List]:
         "smartertime_buckets"
     ].items():
         events = aw_research.classify._get_events_smartertime(
-            since, filepath=smartertime_awbucket_path
+            since, filepath=str(Path(smartertime_awbucket_path).expanduser())
         )
         for e in events:
             e.data["$source"] = "smartertime"
@@ -227,7 +229,8 @@ def classify(events: List[Event], personal: bool) -> List[Event]:
     load_from_file = True if personal else False
     if load_from_file:
         # TODO: Move categories into config.toml itself
-        aw_research.classify._init_classes(filename=load_config()["data"]["categories"])
+        categories_path = Path(load_config()["data"]["categories"]).expanduser()
+        aw_research.classify._init_classes(filename=str(categories_path))
     else:
         logger.info("Using example categories")
         # gives non-sensical type error on check:
@@ -255,6 +258,7 @@ def load_category_df(events: List[Event]):
 
 @click.command()
 def activitywatch():
+    """Load complete timeline and print total duration"""
     events = load_complete_timeline(datetime.now(tz=timezone.utc) - timedelta(days=90))
     print(f"Total duration: {sum((e.duration for e in events), timedelta(0))}")
 

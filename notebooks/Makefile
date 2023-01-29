@@ -10,11 +10,6 @@ YEAR := $(shell date +%Y)
 
 build: $(OUT_FILES) output/index.html
 
-clean-cache:
-	rm -rf .cache
-	# if personal/.cache exists, delete it
-	[ -d personal/.cache ] && rm -rf personal/.cache
-
 .PHONY: output/index.html
 output/index.html:
 	@echo -e "<html><head><title>QuantifiedMe Index</title></head>" > $@
@@ -27,8 +22,7 @@ output/index.html:
 		echo -e "<td><a href='$$i' target="_blank">$(basename $$i)</a></td>" >> $@; \
 		if [ -f output/$$i ]; then \
 			LAST_UPDATED=$$(date +%s -r output/$$i); \
-			AGE=$$(($$(date +%s) - $$LAST_UPDATED)); \
-			echo -e "<td>$$AGE s ago</td>" >> $@; \
+			echo -e "<td><script>document.write(Math.round((new Date().getTime() / 1000 - $$LAST_UPDATED) / 86400 * 1000) / 1000)</script> days</td>" >> $@; \
 			ERRORS=$$(grep 'error' --ignore-case output/$$i | wc -l); \
 			ERRORS=$$(($$ERRORS - 20)); \
 			if [ $$ERRORS -gt 0 ]; then \
@@ -59,6 +53,15 @@ output/%.html: %.ipynb set-env
 		--allow-errors #--no-input
 	@make output/index.html  # update index
 
+# We don't want to override slow-built notebooks
+output/slow/%.html: %.ipynb set-env
+	make set-slow
+	poetry run jupyter nbconvert $< \
+		--output-dir output/slow --to=html \
+		--execute --ExecutePreprocessor.kernel_name=python3 --ExecutePreprocessor.timeout=1200 \
+		--allow-errors #--no-input
+	@make output/index.html  # update index
+
 output/%/index.md: %.ipynb
 	poetry run jupyter nbconvert $< \
 		--output-dir output --to md \
@@ -78,6 +81,11 @@ precommit:
 
 clean:
 	rm -r output
+
+clean-cache:
+	rm -rf .cache
+	# if personal/.cache exists, delete it
+	[ -d personal/.cache ] && rm -rf personal/.cache
 
 # Notebook settings
 

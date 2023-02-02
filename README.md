@@ -10,6 +10,7 @@ You can see an example notebook with fake data built in CI here: https://erik.bj
 
 **Note:** The code is not in a condition to be used by others than me, but I encourage you to try to anyway, and report or send PRs for any issues you encounter.
 
+
 ## Features
 
 The code in this repository generally loads data from some source into a Pandas dataframe, and may provide some basic plotting for that data. 
@@ -17,25 +18,38 @@ This makes it useful for exploratory data analysis with Jupyter notebooks, for e
 
 Types of data supported:
 
+ - Fitness tracker data (from Fitbit, Oura, Whoop)
+   - In particular heart rate data
  - Time tracking data (from ActivityWatch, Toggl, SmarterTime)
  - Location data (from Google Location History)
    - Includes basic plotting of time spent in a certain location.
    - Includes function for computing the colocation time of two location histories (time spent together).
  - Habit data (from HabitBull)
    - Includes a calendar plot.
- - Oura data
- - QSlang data
+ - Drug consumption (from QSlang)
 
-Planned:
+Can load data from:
 
- - Whoop strap data
- - Mi Band
+ - Fitbit
+ - Whoop
+ - Oura
+ - ...and more (see `src/quantifiedme/load/`)
+
 
 ## Notebooks
 
 There is currently only one example notebook.
 
- - Dashboard: Uses ActivityWatch and SmarterTime data from multiple devices (desktop, laptop, phone) to create a unified overview of time spent. Used by me as a sort of personal-productivity dashboard, and plots things like hours worked per day (and on what), which categories are consuming most of my time on a 30-day and 365-day basis, and how much I make in "fictional salary" over time (by assigning an hourly wage to each category).
+ - Dashboard
+   - Uses ActivityWatch and SmarterTime data from multiple devices (desktop, laptop, phone) to create a unified overview of time spent. 
+   - Used by me as a sort of personal-productivity dashboard.
+   - Plots things like:
+     - hours worked per day (and on what)
+     - which categories are consuming most of my time on a 30-day and 365-day basis
+     - how much I make in "fictional salary" over time (by assigning an hourly wage to each category)
+
+I also have a collection of private notebooks for exploratory analysis, some of which I hope to share later.
+
 
 ## Configuration
 

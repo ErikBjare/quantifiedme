@@ -3,20 +3,17 @@ from ..config import load_config
 from pathlib import Path
 
 import pandas as pd
-import json
 
 
 def _load_heartrate_file(filepath):
-    print(f"Loading {filepath}...")
-    with open(filepath) as f:
-        data = json.load(f)
-        df = pd.DataFrame(
-            [(entry["dateTime"], entry["value"]["bpm"]) for entry in data],
-            columns=["timestamp", "bpm"],
-        )
-        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
-        df = df.set_index("timestamp")
-        return df
+    #print(f"Loading {filepath}...")
+    # json format is {"dateTime": "2020-01-01", "value": {"bpm": 60, "confidence": 0}}
+    df = pd.read_json(filepath)
+    df["timestamp"] = pd.to_datetime(df["dateTime"], utc=True)
+    df["hr"] = df["value"].apply(lambda x: x["bpm"])
+    df = df.set_index("timestamp")
+    df = df[["hr"]]
+    return df
 
 
 def load_heartrate_df() -> pd.DataFrame:
@@ -40,6 +37,9 @@ def load_heartrate_df() -> pd.DataFrame:
 
     # combine all the dataframes into a single dataframe
     df = pd.concat(dfs)
+
+    # rename column bpm to hr
+    df = df.rename(columns={"bpm": "hr"})
 
     return df
 

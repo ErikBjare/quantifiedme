@@ -80,6 +80,9 @@ def load_heartrate_df() -> pd.DataFrame:
     df = df.set_index("timestamp")
     # drop zeros
     df = df[df["bpm"] > 0]
+    
+    # rename bpm to hr
+    df = df.rename(columns={"bpm": "hr"})
 
     return df
 

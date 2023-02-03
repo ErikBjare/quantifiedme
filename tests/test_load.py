@@ -6,7 +6,7 @@ from aw_core import Event
 
 from quantifiedme.config import has_config
 from quantifiedme.load.qslang import load_df, to_series
-from quantifiedme.load.activitywatch import load_complete_timeline, load_category_df
+from quantifiedme.derived.screentime import load_screentime, load_category_df
 from quantifiedme.load.toggl import load_toggl
 from quantifiedme.load.habitbull import load_df as load_habitbull_df
 from quantifiedme.load.location import load_all_dfs
@@ -67,8 +67,8 @@ def test_qslang_unknown_dose():
     assert 0.00015 == df.iloc[0]["dose"]
 
 
-def test_load_activitywatch():
-    events = load_complete_timeline(
+def test_load_screentime():
+    events = load_screentime(
         datetime.now(tz=timezone.utc) - timedelta(days=90),
         datasources=["fake"],
         hostnames=[],

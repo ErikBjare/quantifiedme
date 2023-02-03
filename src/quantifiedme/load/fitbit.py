@@ -1,4 +1,5 @@
 from ..config import load_config
+from ..cache import memory
 
 from pathlib import Path
 
@@ -6,7 +7,7 @@ import pandas as pd
 
 
 def _load_heartrate_file(filepath):
-    #print(f"Loading {filepath}...")
+    # print(f"Loading {filepath}...")
     # json format is {"dateTime": "2020-01-01", "value": {"bpm": 60, "confidence": 0}}
     df = pd.read_json(filepath)
     df["timestamp"] = pd.to_datetime(df["dateTime"], utc=True)
@@ -16,6 +17,7 @@ def _load_heartrate_file(filepath):
     return df
 
 
+@memory.cache
 def load_heartrate_df() -> pd.DataFrame:
     # load heartrate data from Fitbit export
     filepath = load_config()["data"]["fitbit"]

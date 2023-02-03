@@ -30,7 +30,7 @@ def load_heartrate_df() -> pd.DataFrame:
 
     # sort
     df = df.sort_index()
-    
+
     # rename index to timestamp
     df.index.name = "timestamp"
 

@@ -3,6 +3,7 @@ import glob
 from datetime import datetime
 from pathlib import Path
 
+from tqdm import tqdm
 import click
 from matplotlib import pyplot as plt
 import numpy as np
@@ -15,9 +16,10 @@ memory = joblib.Memory(".cache/joblib")
 
 
 def location_history_to_df(fn) -> pd.DataFrame:
+    print(f"Loading location data from {fn}")
     with open(fn) as f:
         locs = json.load(f)["locations"]
-    for loc in locs:
+    for loc in tqdm(locs):
         loc["lat"] = loc.pop("latitudeE7") / 10_000_000
         loc["long"] = loc.pop("longitudeE7") / 10_000_000
         loc["timestamp"] = pd.Timestamp(int(loc.pop("timestampMs")), unit="ms")

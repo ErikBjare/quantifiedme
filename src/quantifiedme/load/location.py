@@ -12,26 +12,61 @@ import joblib
 
 from ..config import load_config
 
-memory = joblib.Memory(".cache/joblib")
+memory = joblib.Memory(".cache")
 
 
-def location_history_to_df(fn) -> pd.DataFrame:
+def location_history_to_df(fn, use_inferred_loc=False) -> pd.DataFrame:
     print(f"Loading location data from {fn}")
     with open(fn) as f:
         locs = json.load(f)["locations"]
     for loc in tqdm(locs):
-        loc["lat"] = loc.pop("latitudeE7") / 10_000_000
-        loc["long"] = loc.pop("longitudeE7") / 10_000_000
-        loc["timestamp"] = pd.Timestamp(int(loc.pop("timestampMs")), unit="ms")
-        for p in ["velocity", "verticalAccuracy", "altitude", "activity", "heading"]:
+        try:
+            loc["lat"] = loc.pop("latitudeE7") / 10_000_000
+            loc["long"] = loc.pop("longitudeE7") / 10_000_000
+        except KeyError:
+            if use_inferred_loc and "inferredLocation" in loc:
+                inferredloc = loc.pop("inferredLocation")[0]
+                loc["lat"] = inferredloc["latitudeE7"] / 10_000_000
+                loc["long"] = inferredloc["longitudeE7"] / 10_000_000
+            else:
+                print(f"Error parsing location entry. Entry had keys: {loc.keys()}")
+                # raise ValueError(f"Error parsing location entry: {loc}, {loc.keys()}")
+
+        if "timestampMs" in loc:
+            loc["timestamp"] = pd.Timestamp(
+                int(loc.pop("timestampMs")),
+                unit="ms",
+                tz="UTC",
+            )
+        elif "timestamp" in loc:
+            loc["timestamp"] = pd.Timestamp(loc.pop("timestamp"))
+        else:
+            raise ValueError("No timestamp found")
+
+        # strip extra fields
+        for p in [
+            "velocity",
+            "verticalAccuracy",
+            "altitude",
+            "activity",
+            "heading",
+            "locationMetadata",
+            "osLevel",
+            "deviceTag",
+            "formFactor",
+            "batteryCharging",
+            "serverTimestamp",
+        ]:
             if p in loc:
                 loc.pop(p)
+
     df = pd.DataFrame(locs)
     # no idea why this is typed as None, needing the type-ignore on next lint
     df = df.set_index("timestamp")
     # Remove duplicates in index
     df = df[~df.index.duplicated(keep="first")]  # type: ignore
-    df = df.resample("10Min").ffill()
+    # resample and fill missing values, but only for up to 12h
+    df = df.resample("10Min").ffill(limit=6 * 12)
     return df
 
 
@@ -96,12 +131,10 @@ def plot_df_duration(df, title, save: str | None = None) -> None:
         plt.show()
 
 
-def main_plot(dfs, me, other, start=None, save=None):
+def main_plot(dfs, me, other, save=None, invert=False):
     coords = load_config()["locations"]
 
     df = dfs[me]
-    if start:
-        df = df[start < df.index]
 
     if other in coords:
         loc = coords[other]
@@ -111,10 +144,12 @@ def main_plot(dfs, me, other, start=None, save=None):
     else:
         # df = colocate(dfs[me], dfs[args.other], start=args.start)
         df_other = dfs[other]
-        if start:
-            df_other = df_other[start < df_other.index]
         df = colocate(df, df_other)
 
+    if invert:
+        df = 24 - df
+
+    # print(df)
     plot_df_duration(df, other, save)
 
 
@@ -122,9 +157,14 @@ def main_plot(dfs, me, other, start=None, save=None):
 @click.argument("name")
 @click.option("--start", default=None, type=click.DateTime(), help="query from date")
 @click.option("--save", is_flag=True)
-def locate(name: str, start: datetime, save: bool):
+@click.option("--me", default=None)
+@click.option("--invert", is_flag=True)
+def locate(
+    name: str, start: datetime, save: bool, me: str | None, invert: bool
+) -> None:
     """Plot of when your location was proximate to some location NAME"""
-    me = load_config()["me"]["name"]
+    if me is None:
+        me = load_config()["me"]["name"]
 
     dfs = load_all_dfs()
     df = dfs[me]
@@ -132,7 +172,7 @@ def locate(name: str, start: datetime, save: bool):
     if start:
         df = df[start < df.index]
 
-    main_plot(dfs, me, name)
+    main_plot(dfs, me, name, invert=invert)
 
 
 if __name__ == "__main__":

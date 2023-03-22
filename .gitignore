@@ -31,3 +31,6 @@ dist
 htmlcov
 coverage.xml
 .coverage
+
+# macOS
+.DS_Store

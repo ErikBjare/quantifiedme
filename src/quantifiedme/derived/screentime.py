@@ -1,8 +1,6 @@
 import logging
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-import random
-from typing import Iterable
 
 import click
 import pandas as pd
@@ -22,12 +20,21 @@ from ..load.smartertime import load_events as load_events_smartertime
 from ..config import load_config
 from ..cache import cache_dir
 
+from ..load.activitywatch_fake import create_fake_events
+
 memory = Memory(cache_dir, verbose=0)
 logger = logging.getLogger(__name__)
 
 
+def _get_aw_client(testing: bool) -> ActivityWatchClient:
+    config = load_config()
+    sec_aw = config["data"].get("activitywatch", {})
+    port = sec_aw.get("port", 5600 if not testing else 5666)
+    return ActivityWatchClient(port=port, testing=testing)
+
+
 def load_screentime(
-    since: datetime,
+    since: datetime | None,
     datasources: list[str],
     hostnames: list[str],
     personal: bool,
@@ -36,6 +43,8 @@ def load_screentime(
     awc: ActivityWatchClient | None = None,
 ) -> list[Event]:
     now = datetime.now(tz=timezone.utc)
+    if since is None:
+        since = now - timedelta(days=365)
 
     # The below code does caching using joblib, setting cache=False clears the cache.
     if not cache:
@@ -52,7 +61,7 @@ def load_screentime(
 
     if "activitywatch" in datasources:
         if awc is None:
-            awc = ActivityWatchClient(testing=testing)
+            awc = _get_aw_client(testing)
         for hostname in hostnames:
             logger.info(f"Getting events for {hostname}...")
             # Split up into previous days and today, to take advantage of caching
@@ -121,95 +130,21 @@ def _join_events(
 
 
 def classify(events: list[Event], personal: bool) -> list[Event]:
-    # TODO: Move to example config.toml
-    example_classes = [
-        # (Social) Media
-        (r"Facebook|facebook.com", "Social Media", "Media"),
-        (r"Reddit|reddit.com", "Social Media", "Media"),
-        (r"Spotify|spotify.com", "Music", "Media"),
-        (r"subcategory without matching", "Video", "Media"),
-        (r"YouTube|youtube.com", "YouTube", "Video"),
-        (r"Plex|plex.tv", "Plex", "Video"),
-        (r"Fallout 4", "Games", "Media"),
-        # Work
-        (r"github.com|stackoverflow.com", "Programming", "Work"),
-        (r"[Aa]ctivity[Ww]atch|aw-.*", "ActivityWatch", "Programming"),
-        (r"[Qq]uantified[Mm]e", "QuantifiedMe", "Programming"),
-        (r"[Tt]hankful", "Thankful", "Programming"),
-        # School
-        (r"subcategory without matching", "School", "Work"),
-        (r"Duolingo|Brilliant|Khan Academy", "Self-directed", "School"),
-        (r"Analysis in One Variable", "Maths", "School"),
-        (r"Applied Machine Learning", "CS", "School"),
-        (r"Advanced Web Security", "CS", "School"),
-    ]
-
     # Now load the classes from within the notebook, or from a CSV file.
-    load_from_file = True if personal else False
-    if load_from_file:
-        # TODO: Move categories into config.toml itself
-        categories_path = Path(load_config()["data"]["categories"]).expanduser()
-        aw_research.classify._init_classes(filename=str(categories_path))
-    else:
+    use_example = not personal
+    if use_example:
         logger.info("Using example categories")
-        # gives non-sensical type error on check:
-        #   Argument "new_classes" to "_init_classes" has incompatible type "List[Tuple[str, str, str]]"; expected "Optional[List[Tuple[str, str, Optional[str]]]]"
-        aw_research.classify._init_classes(new_classes=example_classes)  # type: ignore
+        categories_path = Path(__file__).parent / "categories.example.toml"
+    else:
+        categories_path = Path(load_config()["data"]["categories"]).expanduser()
 
+    aw_research.classify._init_classes(filename=str(categories_path))
     events = aw_research.classify.classify(events)
 
     return events
 
 
-fakedata_weights = [
-    (100, None),
-    (2, {"title": "Uncategorized"}),
-    (5, {"title": "ActivityWatch"}),
-    (4, {"title": "Thankful"}),
-    (3, {"title": "QuantifiedMe"}),
-    (3, {"title": "FMAA01 - Analysis in One Variable"}),
-    (3, {"title": "EDAN95 - Applied Machine Learning"}),
-    (2, {"title": "Stack Overflow"}),
-    (2, {"title": "phone: Brilliant"}),
-    (2, {"url": "youtube.com", "title": "YouTube"}),
-    (1, {"url": "reddit.com"}),
-    (1, {"url": "facebook.com"}),
-    (1, {"title": "Plex"}),
-    (1, {"title": "Spotify"}),
-    (1, {"title": "Fallout 4"}),
-]
-
-
-# TODO: Merge/replace with aw-fakedata
-def create_fake_events(start: datetime, end: datetime) -> Iterable[Event]:
-    assert start.tzinfo
-    assert end.tzinfo
-
-    # First set RNG seeds to make the notebook reproducible
-    random.seed(0)
-    np.random.seed(0)
-
-    # Ensures events don't start a few ms in the past
-    start += timedelta(seconds=1)
-
-    pareto_alpha = 0.5
-    pareto_mode = 5
-    time_passed = timedelta()
-    while start + time_passed < end:
-        duration = timedelta(seconds=np.random.pareto(pareto_alpha) * pareto_mode)
-        duration = min([timedelta(hours=1), duration])
-        timestamp = start + time_passed
-        time_passed += duration
-        if start + time_passed > end:
-            break
-        data = random.choices(
-            [d[1] for d in fakedata_weights], [d[0] for d in fakedata_weights]
-        )[0]
-        if data:
-            yield Event(timestamp=timestamp, duration=duration, data=data)
-
-
-def load_category_df(events: list[Event]):
+def load_category_df(events: list[Event]) -> pd.DataFrame:
     tss = {}
     all_categories = list({t for e in events for t in e.data["$tags"]})
     for cat in all_categories:
@@ -226,13 +161,13 @@ def load_category_df(events: list[Event]):
 @click.command()
 def screentime():
     """Load all screentime and print total duration"""
-    # TODO: Get awc/hostname parameters from config
+    # TODO: Get awc parameters from config
+    hostnames = load_config()["data"]["activitywatch"]["hostnames"]
     events = load_screentime(
         since=datetime.now(tz=timezone.utc) - timedelta(days=90),
         datasources=["activitywatch"],
-        hostnames=["erb-main2-arch", "erb-m2.localdomain"],
+        hostnames=hostnames,
         personal=True,
-        awc=ActivityWatchClient("quantifiedme-screentime", port=5667),
     )
     print(f"Total duration: {sum((e.duration for e in events), timedelta(0))}")
 

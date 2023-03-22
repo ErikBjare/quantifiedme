@@ -25,7 +25,18 @@ def load_heartrate_df() -> pd.DataFrame:
     return df
 
 
+def load_heartrate_daily_df(zones={"low": 100, "med": 140, "high": 160}) -> pd.DataFrame:
+    """Load heartrates, group into day, bin by zone, and return a dataframe."""
+    df = load_heartrate_df()
+    df = df.groupby(pd.Grouper(freq="D")).mean()
+    df["zone"] = pd.cut(df["heartrate"], bins=[0, *zones.values(), 300], labels=zones.keys())
+    return df
+
+
 if __name__ == "__main__":
     df = load_heartrate_df()
     print(df)
     print(df.describe())
+
+    df = load_heartrate_daily_df()
+    print(df)

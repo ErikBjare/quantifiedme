@@ -11,8 +11,6 @@ from collections import defaultdict
 
 import pandas as pd
 
-from matplotlib import pyplot as plt
-
 data_dir = Path(__file__).parent.parent.parent.parent / "data"
 fusion_dir = data_dir / "eeg" / "fusion"
 fusion_dir_erik = fusion_dir / "erik"
@@ -29,16 +27,14 @@ data_pbb = fusion_dir_erik / f"{erik_id}_neurosity_powerByBand_1678196988.json"
 bands_ordered = ["delta", "theta", "alpha", "beta", "gamma"]
 
 
-def load_data(files: dict):
-    # df_raw = pd.read_json(files["rawBrainwaves"])
-    # print(df_raw)
-    # print(df_raw.describe())
-
-    # df_sig = pd.read_json(files["signalQuality"])
-    # print(df_sig)
-    # print(df_sig.describe())
-
-    pass
+def load_data():
+    filesets = load_fileset()
+    df = pd.DataFrame()
+    for timestamp, files in filesets.items():
+        result = load_session(files)
+        # pprint(result)
+        df = df.append(result, ignore_index=True)
+    return df
 
 
 def load_session(files: dict) -> dict:
@@ -51,12 +47,61 @@ def load_session(files: dict) -> dict:
      - relative power by band
      - average focus/calm score
     """
-    raise NotImplementedError
+    # Best channels are usually: CP3, CP4, PO3, PO4
+
+    # NOTE: unixTimestamps are int/seconds but samples more often than 1Hz,
+    #       so several rows per timestamp and missing sub-second resolution.
+    df_pbb = pd.read_json(files["powerByBand"])
+    df_pbb.set_index("unixTimestamp", inplace=True)
+    df_pbb.index = pd.to_datetime(df_pbb.index, unit="s")
+    df_pbb = df_pbb.resample("5s").mean()
+    print(df_pbb)
+    print(df_pbb.describe())
+
+    # we have to deal with the channels, such as CP3_alpha, CP3_beta, etc.
+    # for now, we will just average them all together
+    channels, bands = zip(*[c.split("_") for c in df_pbb.columns])
+    channels, bands = list(set(channels)), list(set(bands))
+
+    df = pd.DataFrame(index=df_pbb.index)
+    for band in bands:
+        channels_with_band = [c for c in df_pbb.columns if c.endswith(band)]
+        df[band] = df_pbb[channels_with_band].mean(axis=1)
+    average_band_power = df.mean()[bands_ordered]
+
+    df = pd.DataFrame(index=df_pbb.index)
+    for channel in channels:
+        bands_for_channel = [c for c in df_pbb.columns if c.startswith(channel)]
+        df[channel] = df_pbb[bands_for_channel].mean(axis=1)
+    average_channel_power = df.mean()[channels]
+
+    # plt.figure()
+    # average_band_power.plot.bar()
+    # plt.title("Average power by band, time: " + str(df.index[0]))
+    # plt.show()
+    # quit()
+
+    df_calm = pd.read_json(files["calm"])
+    avg_calm_score = df_calm["probability"].mean()
+    time_spent_calm = (df_calm["probability"] > 0.5).sum() / len(df_calm)
+
+    df_focus = pd.read_json(files["focus"])
+    avg_focus_score = df_focus["probability"].mean()
+    time_spent_focused = (df_focus["probability"] > 0.5).sum() / len(df_focus)
+
     return {
-        "avg_power_by_band": {},
-        "avg_power_by_channel": {},
-        "avg_calm_score": 0.0,
-        "avg_focus_score": 0.0,
+        "timestamp": df_pbb.index[0],
+        "duration": df_pbb.index[-1] - df_pbb.index[0],
+        "avg_power_per_channel_by_band": {
+            channel: {band: df_pbb[channel + "_" + band].mean() for band in bands}
+            for channel in channels
+        },
+        "avg_power_by_band": dict(average_band_power),
+        "avg_power_by_channel": dict(average_channel_power),
+        "avg_calm_score": avg_calm_score,
+        "avg_focus_score": avg_focus_score,
+        "time_spent_calm": time_spent_calm,
+        "time_spent_focused": time_spent_focused,
         # `relative_power` keys are 2-tuples (band1, band2), values are ratios
         # maybe doesn't need to be computed here,
         # can be computed later from `avg_power_by_band`
@@ -73,36 +118,9 @@ def load_sessions():
     return sessions
 
 
-def _process_pbb(files: dict):
-    """Process powerByBand data."""
-    # Best channels are usually: CP3, CP4, PO3, PO4
-
-    # NOTE: unixTimestamps are int/seconds but samples more often than 1Hz,
-    #       so several rows per timestamp and missing sub-second resolution.
-    df_pbb = pd.read_json(files["powerByBand"])
-    df_pbb.set_index("unixTimestamp", inplace=True)
-    df_pbb.index = pd.to_datetime(df_pbb.index, unit="s")
-    df_pbb = df_pbb.resample("5s").mean()
-    print(df_pbb)
-    print(df_pbb.describe())
-
-    # we have to deal with the channels, such as CP3_alpha, CP3_beta, etc.
-    # for now, we will just average them all together
-    channels, bands = zip(*[c.split("_") for c in df_pbb.columns])
-    channels, bands = list(set(channels)), list(set(bands))
-    df = pd.DataFrame(index=df_pbb.index)
-    for band in bands:
-        channel_with_band = [c for c in df_pbb.columns if c.endswith(band)]
-        df[band] = df_pbb[channel_with_band].mean(axis=1)
-
-    # plot bands as bar chart
-    print(df.describe())
-    df.mean()[bands_ordered].plot.bar()
-    plt.title("Average power by band, time: " + str(df.index[0]))
-    plt.show()
-
-
-def load_fileset(dir=data_dir / "eeg" / "fusion" / "ore" / "resting"):
+def load_fileset(
+    dir=data_dir / "eeg" / "fusion" / "ore" / "resting",
+) -> dict[str, dict[str, str]]:
     """
     Iterated over files in a directory with recordings,
     groups them by their session/start timestamp,
@@ -120,8 +138,5 @@ def load_fileset(dir=data_dir / "eeg" / "fusion" / "ore" / "resting"):
 
 
 if __name__ == "__main__":
-    filesets = load_fileset()
-    for timestamp, files in filesets.items():
-        # print(files)
-        # load_data(files)
-        result = _process_pbb(files)
+    df = load_data()
+    print(df)

@@ -41,6 +41,38 @@ def load_data(files: dict):
     pass
 
 
+def load_session(files: dict) -> dict:
+    """
+    Takes a session of EEG data, computes some metrics, and returns them.
+
+    Potential metrics:
+     - average power by band
+     - average power by channel
+     - relative power by band
+     - average focus/calm score
+    """
+    raise NotImplementedError
+    return {
+        "avg_power_by_band": {},
+        "avg_power_by_channel": {},
+        "avg_calm_score": 0.0,
+        "avg_focus_score": 0.0,
+        # `relative_power` keys are 2-tuples (band1, band2), values are ratios
+        # maybe doesn't need to be computed here,
+        # can be computed later from `avg_power_by_band`
+        "relative_power": {},
+    }
+
+
+def load_sessions():
+    """Loads all sessions of EEG data, compute & return metric for each session."""
+    filesets = load_fileset()
+    sessions: dict[str, dict] = {}
+    for timestamp, files in filesets.items():
+        sessions[timestamp] = load_session(files)
+    return sessions
+
+
 def _process_pbb(files: dict):
     """Process powerByBand data."""
     # Best channels are usually: CP3, CP4, PO3, PO4

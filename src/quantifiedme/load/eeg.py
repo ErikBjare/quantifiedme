@@ -54,9 +54,6 @@ def load_session(files: dict) -> dict:
     df_pbb = pd.read_json(files["powerByBand"])
     df_pbb.set_index("unixTimestamp", inplace=True)
     df_pbb.index = pd.to_datetime(df_pbb.index, unit="s")
-    df_pbb = df_pbb.resample("5s").mean()
-    print(df_pbb)
-    print(df_pbb.describe())
 
     # we have to deal with the channels, such as CP3_alpha, CP3_beta, etc.
     # for now, we will just average them all together
@@ -74,12 +71,6 @@ def load_session(files: dict) -> dict:
         bands_for_channel = [c for c in df_pbb.columns if c.startswith(channel)]
         df[channel] = df_pbb[bands_for_channel].mean(axis=1)
     average_channel_power = df.mean()[channels]
-
-    # plt.figure()
-    # average_band_power.plot.bar()
-    # plt.title("Average power by band, time: " + str(df.index[0]))
-    # plt.show()
-    # quit()
 
     df_calm = pd.read_json(files["calm"])
     avg_calm_score = df_calm["probability"].mean()
@@ -105,7 +96,7 @@ def load_session(files: dict) -> dict:
         # `relative_power` keys are 2-tuples (band1, band2), values are ratios
         # maybe doesn't need to be computed here,
         # can be computed later from `avg_power_by_band`
-        "relative_power": {},
+        # "relative_power": {},
     }
 
 
@@ -140,3 +131,4 @@ def load_fileset(
 if __name__ == "__main__":
     df = load_data()
     print(df)
+    print(df.describe())

@@ -56,3 +56,8 @@ I also have a collection of private notebooks for exploratory analysis, some of 
 The configuration is used to specify where data files are located, as well as a few settings.
 
 An example configuration file is provided in `config.example.toml`.
+
+
+## Related projects
+
+ - [HPI](https://github.com/karlicoss/HPI) ("Human Programming Interface") by @karlicoss

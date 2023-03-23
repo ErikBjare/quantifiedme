@@ -6,7 +6,7 @@ QuantifiedMe
 
 Loading and plotting of various Quantified Self data sources.
 
-You can see an example notebook with fake data built in CI here: https://erik.bjareholt.com/quantifiedme/aw-server-rust/Dashboard.html
+You can see an example notebook with fake data built in CI [down below](#notebooks).
 
 **Note:** The code is not in a condition to be used by others than me, but I encourage you to try to anyway, and report or send PRs for any issues you encounter.
 
@@ -40,7 +40,7 @@ Can load data from:
 
 There is currently only one example notebook.
 
- - Dashboard
+ - Dashboard - Preview at: https://erik.bjareholt.com/quantifiedme/Dashboard.html
    - Uses ActivityWatch and SmarterTime data from multiple devices (desktop, laptop, phone) to create a unified overview of time spent. 
    - Used by me as a sort of personal-productivity dashboard.
    - Plots things like:
@@ -48,7 +48,7 @@ There is currently only one example notebook.
      - which categories are consuming most of my time on a 30-day and 365-day basis
      - how much I make in "fictional salary" over time (by assigning an hourly wage to each category)
 
-I also have a collection of private notebooks for exploratory analysis, some of which I hope to share later.
+I also have a collection of private notebooks for exploratory analysis, which I hope to share later.
 
 
 ## Configuration

@@ -17,7 +17,7 @@ from aw_research.util import verify_no_overlap, split_into_weeks, categorytime_p
 from ..load.activitywatch import load_events as load_events_activitywatch
 from ..load.smartertime import load_events as load_events_smartertime
 
-from ..config import load_config
+from ..config import load_config, _get_config_path
 from ..cache import cache_dir
 
 from ..load.activitywatch_fake import create_fake_events
@@ -131,12 +131,13 @@ def _join_events(
 
 def classify(events: list[Event], personal: bool) -> list[Event]:
     # Now load the classes from within the notebook, or from a CSV file.
-    use_example = not personal
-    if use_example:
-        logger.info("Using example categories")
-        categories_path = Path(__file__).parent / "categories.example.toml"
-    else:
-        categories_path = Path(load_config()["data"]["categories"]).expanduser()
+    config = load_config(use_example=not personal)
+    categories_path = Path(config["data"]["categories"]).expanduser()
+    # if categories_path is relative, it's relative to the config file
+    if not categories_path.is_absolute():
+        categories_path = (
+            _get_config_path(use_example=not personal).parent / categories_path
+        )
 
     aw_research.classify._init_classes(filename=str(categories_path))
     events = aw_research.classify.classify(events)

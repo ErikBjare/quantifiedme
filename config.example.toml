@@ -11,7 +11,7 @@ date_offset_hours = 5
 habitbull = "~/Downloads/HabitBullData.csv"
 location = "~/location"
 oura = "~/Downloads/oura_2020-02-27T09-07-47.json"
-categories = "~/categories.toml"  # categories.toml from aw-research
+categories = "categories.example.toml"  # categories.toml from aw-research
 
 [data.smartertime_buckets]
 example-hostname = '~/data/smartertime/smartertime_export_example-hostname_2020-01-01_bb7f26aa.awbucket.json'

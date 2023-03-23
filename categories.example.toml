@@ -1,0 +1,18 @@
+[categories]
+
+    [categories.Work]
+    $re = "Google (Sheets|Slides|Forms)"
+
+    [categories.Work.Programming]
+    $re = "[Pp]rogramming"
+    ActivityWatch = "[Aa]ctivity[Ww]atch|aw-.*"
+    QuantifiedMe = "[Qq]uantified[Mm]e"
+
+    [categories.Media]
+    YouTube = "YouTube|youtube.com"
+    Music = "Spotify"
+
+    [categories.Media.'Social Media']
+    Twitter = "Twitter|twitter.com"
+    Reddit = "Reddit|reddit.com"
+    Facebook = "Facebook|facebook.com"

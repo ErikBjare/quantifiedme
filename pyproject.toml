@@ -35,21 +35,20 @@ statsmodels = "*"
 types-click = "*"
 types-toml = "*"
 influxdb-client = {version = "*", optional = true}
-nbval = "^0.9.6"
-pytest-xdist = "^2.5.0"
-pytest-cov = "^3.0.0"
+nbval = "*"
 
 [tool.poetry.group.dev.dependencies]
 jupyterlab = "*"
 ipykernel = "*"
 pytest = "*"
 pytest-cov = "*"
-pytest_notebook = "^0.8.0"
+pytest-xdist = "*"
+pytest_notebook = "*"
 flake8 = "*"
 mypy = "*"
 black = "*"
 ipympl = "*"
-pyupgrade = "^3.3.1"
+pyupgrade = "*"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -66,5 +65,5 @@ strictParameterNoneValue = false
 pythonVersion = "3.9"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

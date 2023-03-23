@@ -24,6 +24,7 @@ fakedata_weights = [
     (1, {"title": "Fallout 4"}),
 ]
 
+
 # TODO: Merge/replace with aw-fakedata
 def create_fake_events(start: datetime, end: datetime) -> Iterable[Event]:
     assert start.tzinfo

@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 def _get_aw_client(testing: bool) -> ActivityWatchClient:
-    config = load_config()
+    config = load_config(use_example=testing)
     sec_aw = config["data"].get("activitywatch", {})
     port = sec_aw.get("port", 5600 if not testing else 5666)
     return ActivityWatchClient(port=port, testing=testing)
@@ -35,33 +35,44 @@ def _get_aw_client(testing: bool) -> ActivityWatchClient:
 
 def load_screentime(
     since: datetime | None,
-    datasources: list[str],
-    hostnames: list[str],
+    datasources: list[str] | None,
+    hostnames: list[str] | None,
     personal: bool,
-    testing: bool = False,
     cache: bool = True,
     awc: ActivityWatchClient | None = None,
 ) -> list[Event]:
+    config = load_config(use_example=not personal)
+
     now = datetime.now(tz=timezone.utc)
     if since is None:
         since = now - timedelta(days=365)
+    else:
+        assert since.tzinfo
 
     # The below code does caching using joblib, setting cache=False clears the cache.
     if not cache:
         memory.clear()
 
-    assert since.tzinfo
-    assert now.tzinfo
+    # Auto-detect datasources from config if not specified
+    if datasources is None:
+        datasources = []
+        if "activitywatch" in config["data"]:
+            datasources.append("activitywatch")
+        if "smartertime_buckets" in config["data"]:
+            datasources.append("smartertime_buckets")
 
     # Check for invalid sources
     for source in datasources:
         assert source in ["activitywatch", "smartertime", "fake", "toggl"]
 
+    # Load hostnames from config if not specified
+    hostnames = hostnames or config["data"]["activitywatch"]["hostnames"]
+
     events: list[Event] = []
 
     if "activitywatch" in datasources:
         if awc is None:
-            awc = _get_aw_client(testing)
+            awc = _get_aw_client(not personal)
         for hostname in hostnames:
             logger.info(f"Getting events for {hostname}...")
             # Split up into previous days and today, to take advantage of caching

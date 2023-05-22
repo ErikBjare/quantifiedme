@@ -1,13 +1,17 @@
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+import pickle
 
 import pytest
+
+import pandas as pd
 
 from aw_core import Event
 
 from quantifiedme.config import has_config
 from quantifiedme.load.qslang import load_df, to_series
 from quantifiedme.derived.screentime import load_screentime, load_category_df
-from quantifiedme.load.toggl import load_toggl
+from quantifiedme.load.toggl_ import load_toggl
 from quantifiedme.load.habitbull import load_df as load_habitbull_df
 from quantifiedme.load.location import load_all_dfs
 from quantifiedme.load.oura import (
@@ -15,8 +19,41 @@ from quantifiedme.load.oura import (
     load_activity_df,
     load_readiness_df,
 )
+from quantifiedme.derived.all_df import load_all_df
+from quantifiedme.derived.screentime import classify
 
 now = datetime.now(tz=timezone.utc)
+
+@pytest.fixture(scope="session", autouse=True)
+def setup():
+    pd.set_option('display.max_colwidth', None)
+    pd.set_option('display.max_columns', None)
+    #pd.set_option('display.max_rows', None)
+
+def load_example_events() -> list[Event]:
+    events_cached_fast = Path("notebooks/events_fast.pickle")
+    if events_cached_fast.exists():
+        with events_cached_fast.open("rb") as f:
+            events = pickle.load(f)
+    else:
+        events = [
+            Event(timestamp=now, data={"title": "Mozilla Firefox", "app": "Firefox"}),
+        ]
+
+    events = classify(events, personal=False)
+    return events
+
+
+def test_load_example_events():
+    events = load_example_events()
+    assert events
+
+
+def test_load_all_df():
+    events = load_example_events()
+    df = load_all_df(events, ignore=["heartrate"])
+    print(df)
+
 
 
 @pytest.mark.skipif(not has_config(), reason="no config available for test data")
@@ -39,7 +76,7 @@ def test_load_qslang():
         assert (10e-6 <= series_nonzero).all()
 
         # Less than 500mg
-        assert (series_nonzero <= 500e-6).all()
+        assert (series_nonzero <= 500e-6).all(), series_nonzero[series_nonzero >= 500e-6]
 
     for subst in ["Phenibut"]:
         series = to_series(df, substance=subst)
@@ -58,10 +95,11 @@ def test_load_qslang():
 
 
 def test_qslang_unknown_dose():
+    from qslang import Event as QSEvent
     events = [
-        Event(timestamp=now, data={"substance": "Caffeine", "amount": "?g"}),
-        Event(timestamp=now, data={"substance": "Caffeine", "amount": "100mg"}),
-        Event(timestamp=now, data={"substance": "Caffeine", "amount": "200mg"}),
+        QSEvent(timestamp=now, type="dose", data={"substance": "Caffeine", "amount": "?g"}),
+        QSEvent(timestamp=now, type="dose", data={"substance": "Caffeine", "amount": "100mg"}),
+        QSEvent(timestamp=now, type="dose", data={"substance": "Caffeine", "amount": "200mg"}),
     ]
     df = load_df(events)
     assert 0.00015 == df.iloc[0]["dose"]

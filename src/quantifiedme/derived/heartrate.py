@@ -27,13 +27,18 @@ def load_heartrate_df() -> pd.DataFrame:
 
 
 def load_heartrate_daily_df(
-    zones={"low": 100, "med": 140, "high": 160}
+    zones={"low": 100, "med": 140, "high": 160}, freq="D"
 ) -> pd.DataFrame:
-    """Load heartrates, group into day, bin by zone, and return a dataframe."""
-    df = load_heartrate_df()
-    df = df.groupby(pd.Grouper(freq="D")).mean()
+    """
+    Load heartrates, group into day, bin by zone, and return a dataframe.
+    
+    NOTE: Ignores source, combines all sources into a single point per freq.
+    """
+    source_df = load_heartrate_df().drop(columns=["source"])
+    df = pd.DataFrame()
+    df["hr"] = source_df["hr"].groupby(pd.Grouper(freq=freq)).mean()
     df["zone"] = pd.cut(
-        df["heartrate"], bins=[0, *zones.values(), 300], labels=zones.keys()
+        df["hr"], bins=[0, *zones.values(), 300], labels=["resting", *zones.keys()]
     )
     return df
 

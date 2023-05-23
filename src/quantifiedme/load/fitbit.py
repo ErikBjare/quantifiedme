@@ -6,6 +6,10 @@ from pathlib import Path
 import pandas as pd
 
 
+def load_sleep_df() -> pd.DataFrame:
+    raise NotImplementedError
+
+
 def _load_heartrate_file(filepath):
     # print(f"Loading {filepath}...")
     # json format is {"dateTime": "2020-01-01", "value": {"bpm": 60, "confidence": 0}}

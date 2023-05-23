@@ -26,27 +26,37 @@ def load_heartrate_df() -> pd.DataFrame:
     return df
 
 
-def load_heartrate_daily_df(
-    zones={"low": 100, "med": 140, "high": 160}, freq="D"
+def load_heartrate_minutes_df():
+    """We consider using minute-resolution a decent starting point for summary heartrate data.
+    
+    NOTE: ignores source, combines all sources into a single point per freq.
+    """
+    df = load_heartrate_df().drop(columns=["source"])
+    df = df.resample("1min").mean()
+    return df
+
+
+def load_heartrate_summary_df(
+    zones={"resting": 0, "low": 100, "med": 140, "high": 160}, freq="D"
 ) -> pd.DataFrame:
     """
-    Load heartrates, group into day, bin by zone, and return a dataframe.
-    
-    NOTE: Ignores source, combines all sources into a single point per freq.
+    Load heartrates, group into freq, bin by zone, and return a dataframe.
     """
-    source_df = load_heartrate_df().drop(columns=["source"])
+    source_df = load_heartrate_minutes_df()
     df = pd.DataFrame()
-    df["hr"] = source_df["hr"].groupby(pd.Grouper(freq=freq)).mean()
-    df["zone"] = pd.cut(
-        df["hr"], bins=[0, *zones.values(), 300], labels=["resting", *zones.keys()]
+    df["hr_mean"] = source_df["hr"].groupby(pd.Grouper(freq=freq)).mean()
+
+    # compute time spent in each zone
+    df_zones = pd.cut(
+        source_df["hr"], bins=[*zones.values(), 300], labels=[*zones.keys()]
     )
+    for zone in zones.keys():
+        df[f"hr_duration_{zone}"] = df_zones[df_zones == zone].groupby(
+            pd.Grouper(freq=freq)
+        ).count() * pd.Timedelta(minutes=1)
     return df
 
 
 if __name__ == "__main__":
-    df = load_heartrate_df()
-    print(df)
-    print(df.describe())
-
-    df = load_heartrate_daily_df()
+    df = load_heartrate_summary_df()
     print(df)

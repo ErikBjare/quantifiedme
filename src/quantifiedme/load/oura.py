@@ -22,8 +22,18 @@ def load_sleep_df() -> pd.DataFrame:
     data = load_data()
     df = pd.DataFrame(data["sleep"])
     df["summary_date"] = pd.to_datetime(df["summary_date"])
-    df = df.set_index("summary_date")
-    return df
+    df = df.rename(columns={"summary_date": "timestamp"})
+    df = df.set_index("timestamp")
+    df["bedtime_start"] = pd.to_datetime(df["bedtime_start"])
+    df["bedtime_end"] = pd.to_datetime(df["bedtime_end"])
+    df = df.rename(
+        columns={
+            "bedtime_start": "start",
+            "bedtime_end": "end",
+        }
+    )
+    df["duration"] = df["end"] - df["start"]
+    return df[["start", "end", "duration", "score"]]
 
 
 def load_readiness_df() -> pd.DataFrame:

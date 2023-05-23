@@ -15,6 +15,42 @@ from ..config import load_config
 memory = joblib.Memory(".cache")
 
 
+@memory.cache
+def load_all_dfs() -> dict[str, pd.DataFrame]:
+    dfs = {}
+    path = str(Path(load_config()["data"]["location"]).expanduser())
+    for filepath in glob.glob(path + "/*.json"):
+        name = Path(filepath).name.replace(".json", "")
+        df = location_history_to_df(filepath)
+        dfs[name] = df
+    return dfs
+
+
+def load_daily_df(whitelist: list[str] | None = None) -> pd.DataFrame:
+    """Returns a daily dataframe with how many hours were spent at each location or with each person."""
+    config = load_config()
+    me = config["me"]["name"]
+    locations = config["locations"]
+
+    df = pd.DataFrame(index=pd.DatetimeIndex([]))
+    dfs = load_all_dfs()
+
+    for location in (whitelist or [*locations.keys(), *dfs.keys()]):
+        if location == me:
+            continue
+        if location in locations:
+            loc = locations[location]
+            df[location] = _proximity_to_location(
+                dfs[me], (loc["lat"], loc["long"]), threshold_radius=loc["accuracy"]
+            )
+        elif location in dfs:
+            df[location] = colocate(dfs[me], dfs[location])
+        else:
+            raise ValueError(f"Unknown location {location}")
+
+    return df
+
+
 def location_history_to_df(fn, use_inferred_loc=False) -> pd.DataFrame:
     print(f"Loading location data from {fn}")
     with open(fn) as f:
@@ -70,18 +106,7 @@ def location_history_to_df(fn, use_inferred_loc=False) -> pd.DataFrame:
     return df
 
 
-@memory.cache
-def load_all_dfs() -> dict[str, pd.DataFrame]:
-    dfs = {}
-    path = str(Path(load_config()["data"]["location"]).expanduser())
-    for filepath in glob.glob(path + "/*.json"):
-        name = Path(filepath).name.replace(".json", "")
-        df = location_history_to_df(filepath)
-        dfs[name] = df
-    return dfs
-
-
-def colocate(df_person1, df_person2, verbose=False):
+def colocate(df_person1, df_person2, verbose=False) -> pd.DataFrame:
     df = df_person1.join(df_person2, lsuffix="_a", rsuffix="_b")
     df["dist"] = (
         (df["lat_a"] - df["lat_b"]) ** 2 + (df["long_a"] - df["long_b"]) ** 2
@@ -131,48 +156,24 @@ def plot_df_duration(df, title, save: str | None = None) -> None:
         plt.show()
 
 
-def main_plot(dfs, me, other, save=None, invert=False):
-    coords = load_config()["locations"]
-
-    df = dfs[me]
-
-    if other in coords:
-        loc = coords[other]
-        df = _proximity_to_location(
-            df, (loc["lat"], loc["long"]), threshold_radius=loc["accuracy"]
-        )
-    else:
-        # df = colocate(dfs[me], dfs[args.other], start=args.start)
-        df_other = dfs[other]
-        df = colocate(df, df_other)
-
-    if invert:
-        df = 24 - df
-
-    # print(df)
-    plot_df_duration(df, other, save)
-
-
 @click.command()
 @click.argument("name")
 @click.option("--start", default=None, type=click.DateTime(), help="query from date")
 @click.option("--save", is_flag=True)
-@click.option("--me", default=None)
 @click.option("--invert", is_flag=True)
 def locate(
     name: str, start: datetime, save: bool, me: str | None, invert: bool
 ) -> None:
     """Plot of when your location was proximate to some location NAME"""
-    if me is None:
-        me = load_config()["me"]["name"]
-
-    dfs = load_all_dfs()
-    df = dfs[me]
-
+    df = load_daily_df()
     if start:
         df = df[start < df.index]
 
-    main_plot(dfs, me, name, invert=invert)
+    if invert:
+        df = 24 - df
+
+    # print(df)
+    plot_df_duration(df, name, "location.png" if save else None)
 
 
 if __name__ == "__main__":

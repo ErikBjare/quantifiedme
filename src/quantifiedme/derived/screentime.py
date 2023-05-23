@@ -1,3 +1,4 @@
+import pickle
 import logging
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -37,10 +38,10 @@ DatasourceType = Literal["activitywatch", "smartertime_buckets", "fake", "toggl"
 
 
 def load_screentime(
-    since: datetime | None,
-    datasources: list[DatasourceType] | None,
-    hostnames: list[str] | None,
-    personal: bool,
+    since: datetime | None = None,
+    datasources: list[DatasourceType] | None = None,
+    hostnames: list[str] | None = None,
+    personal: bool = True,
     cache: bool = True,
     awc: ActivityWatchClient | None = None,
 ) -> list[Event]:
@@ -122,6 +123,24 @@ def load_screentime(
 
     return events
 
+def load_screentime_cached(*args, since: datetime | None = None, fast = False, **kwargs) -> list[Event]:
+    # returns screentime from picked cache produced by Dashboard.ipynb (or here)
+    path = Path(__file__).parent.parent.parent.parent / "notebooks" / ("events_fast.pickle" if fast else "events.pickle")
+    if path.exists():
+        print(f"Loading from cache: {path}")
+        with open(path, "rb") as f:
+            events = pickle.load(f)
+        # if fast didn't get us enough data to satisfy the query, we need to load the rest
+        if fast and since and events[-1].timestamp < since:
+            print("Fast couldn't satisfy since, trying again without fast")
+            events = load_screentime_cached(fast=False, **kwargs)
+        # trim according to since
+        if since:
+            events = [e for e in events if e.timestamp >= since]
+        return events
+    else:
+        return load_screentime(*args, **kwargs)
+    
 
 def _join_events(
     old_events: list[Event], new_events: list[Event], source: str

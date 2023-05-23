@@ -139,19 +139,27 @@ def to_series(
     return series
 
 
-def to_df_daily(events: list[Event]):
+def load_daily_df(events: list[Event] | None = None) -> pd.DataFrame:
     """Returns a daily dataframe"""
+    if events is None:
+        events = load_events()
     df_src = load_df(events)
     df = pd.DataFrame()
+
     tags = {tag for e in events for tag in e.data.get("tags", [])}
-    print(tags)
-    for tag in tags:
-        df[f"tag:{tag}"] = to_series(df_src, tag=tag)
+    series_tags = {
+        f"tag:{tag}": to_series(df_src, tag=tag).replace(np.nan, 0)
+        for tag in tags
+    }
 
     substances = {s for s in df_src["substance"] if s}
-    for subst in substances:
-        colname = subst.lower().replace("-", "").replace(" ", "")
-        df[colname] = to_series(df_src, substance=subst)
+    series_subst = {
+        subst.lower().replace("-", "").replace(" ", ""): to_series(df_src, substance=subst)
+        for subst in substances
+    }
+    df = pd.concat([df, pd.DataFrame(series_tags), pd.DataFrame(series_subst)], axis=1)
+
+    return df
 
 
 def _missing_dates():

@@ -5,6 +5,7 @@ Requires the full GDPR-compliant export (which includes granular HR data), which
 """
 
 from pathlib import Path
+from datetime import timedelta
 
 import pandas as pd
 
@@ -37,10 +38,48 @@ def load_heartrate_df() -> pd.DataFrame:
     return df
 
 
-def test_load_whoop():
+def load_sleep_df() -> pd.DataFrame:
+    whoop_export_dir = load_config()["data"]["whoop"]
+    filename = Path(whoop_export_dir) / "Health" / "sleeps.csv"
+    df = pd.read_csv(filename.expanduser(), parse_dates=True)
+    import json
+
+    # df columns are: "created_at","updated_at","activity_id","score","quality_duration","latency","max_heart_rate","average_heart_rate","debt_pre","debt_post","need_from_strain","sleep_need","habitual_sleep_need","disturbances","time_in_bed","light_sleep_duration","slow_wave_sleep_duration","rem_sleep_duration","cycles_count","wake_duration","arousal_time","no_data_duration","in_sleep_efficiency","credit_from_naps","hr_baseline","respiratory_rate","sleep_consistency","algo_version","projected_score","projected_sleep","optimal_sleep_times","kilojoules","user_id","during","timezone_offset","survey_response_id","percent_recorded","auto_detected","state","responded","team_act_id","source","is_significant","is_normal","is_nap"
+    # we are interested in the "during" column, which is a JSON string of a 2-tuple with isoformat timestamps
+    def parse_during(x):
+        try:
+            return eval(x.replace(")", "]"))
+        except:
+            print(x)
+            raise
+    df["start"] = pd.to_datetime(df["during"].apply(lambda x: parse_during(x)[0]))
+    df["end"] = pd.to_datetime(df["during"].apply(lambda x: parse_during(x)[1]))
+    df["duration"] = df["end"] - df["start"]
+
+    # keep only the columns we want
+    df = df[["start", "end", "duration", "score"]]
+
+    # set index and sort
+    offset = timedelta(hours=8)
+    df = df.set_index(pd.DatetimeIndex(df["start"] - offset).date)  # type: ignore
+    df = df.sort_index()
+
+    # rename index to timestamp
+    df.index.name = "timestamp"
+
+    return df
+
+
+def test_load_whoop_heartrate():
     df = load_heartrate_df()
     print(df.head())
 
 
+def test_load_whoop_sleep():
+    df = load_sleep_df()
+    print(df.head())
+
+
 if __name__ == "__main__":
-    test_load_whoop()
+    test_load_whoop_sleep()
+    test_load_whoop_heartrate()

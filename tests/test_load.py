@@ -22,13 +22,17 @@ from quantifiedme.load.oura import (
 from quantifiedme.derived.all_df import load_all_df
 from quantifiedme.derived.screentime import classify
 
+from qslang import Event as QSEvent
+
 now = datetime.now(tz=timezone.utc)
+
 
 @pytest.fixture(scope="session", autouse=True)
 def setup():
-    pd.set_option('display.max_colwidth', None)
-    pd.set_option('display.max_columns', None)
-    #pd.set_option('display.max_rows', None)
+    pd.set_option("display.max_colwidth", None)
+    pd.set_option("display.max_columns", None)
+    # pd.set_option('display.max_rows', None)
+
 
 def load_example_events() -> list[Event]:
     events_cached_fast = Path("notebooks/events_fast.pickle")
@@ -51,9 +55,8 @@ def test_load_example_events():
 
 def test_load_all_df():
     events = load_example_events()
-    df = load_all_df(events, ignore=["heartrate"])
+    df = load_all_df(events, ignore=["heartrate", "location", "sleep"])
     print(df)
-
 
 
 @pytest.mark.skipif(not has_config(), reason="no config available for test data")
@@ -76,7 +79,9 @@ def test_load_qslang():
         assert (10e-6 <= series_nonzero).all()
 
         # Less than 500mg
-        assert (series_nonzero <= 500e-6).all(), series_nonzero[series_nonzero >= 500e-6]
+        assert (series_nonzero <= 500e-6).all(), series_nonzero[
+            series_nonzero >= 500e-6
+        ]
 
     for subst in ["Phenibut"]:
         series = to_series(df, substance=subst)
@@ -95,11 +100,20 @@ def test_load_qslang():
 
 
 def test_qslang_unknown_dose():
-    from qslang import Event as QSEvent
     events = [
-        QSEvent(timestamp=now, type="dose", data={"substance": "Caffeine", "amount": "?g"}),
-        QSEvent(timestamp=now, type="dose", data={"substance": "Caffeine", "amount": "100mg"}),
-        QSEvent(timestamp=now, type="dose", data={"substance": "Caffeine", "amount": "200mg"}),
+        QSEvent(
+            timestamp=now, type="dose", data={"substance": "Caffeine", "amount": "?g"}
+        ),
+        QSEvent(
+            timestamp=now,
+            type="dose",
+            data={"substance": "Caffeine", "amount": "100mg"},
+        ),
+        QSEvent(
+            timestamp=now,
+            type="dose",
+            data={"substance": "Caffeine", "amount": "200mg"},
+        ),
     ]
     df = load_df(events)
     assert 0.00015 == df.iloc[0]["dose"]

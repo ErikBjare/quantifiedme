@@ -8,33 +8,38 @@ Loading and plotting of various Quantified Self data sources.
 
 You can see an example notebook with fake data built in CI [down below](#notebooks).
 
-**Note:** The code is not in a condition to be used by others than me, but I encourage you to try to anyway, and report or send PRs for any issues you encounter.
+**Note:** This code is only used by me, as far as I know, but I encourage you to try it out anyway, and report or send PRs for any issues you encounter. I will try to keep it tidy and somewhat usable.
 
 
 ## Features
 
-The code in this repository generally loads data from some source into a Pandas dataframe, and may provide some basic plotting for that data. 
-This makes it useful for exploratory data analysis with Jupyter notebooks, for example.
+The code in this repository generally loads data from some source into a Pandas dataframe, and provides tools to process, aggregate, and plot the data. 
+
+This makes it a useful toolkit for exploratory data analysis with Jupyter notebooks, for example.
 
 Types of data supported:
 
- - Fitness tracker data (from Fitbit, Oura, Whoop)
-   - In particular heart rate data
  - Time tracking data (from ActivityWatch, Toggl, SmarterTime)
+ - Sleep data (from Fitbit, Oura, Whoop)
+ - Heartrate data (from Fitbit, Oura, Whoop)
  - Location data (from Google Location History)
    - Includes basic plotting of time spent in a certain location.
    - Includes function for computing the colocation time of two location histories (time spent together).
  - Habit data (from HabitBull)
    - Includes a calendar plot.
+   - Easy to adapt to any other habit app that supports CSV export
  - Drug consumption (from QSlang)
 
 Can load data from:
 
+ - ActivityWatch
  - Fitbit
  - Whoop
  - Oura
+ - EEG devices (WIP)
  - ...and more (see `src/quantifiedme/load/`)
 
+It also contains a bunch of useful tools for aggregating or otherwise deriving data from the sources, including helper tools for combining multiple sources for the same type of data (see `src/quantifiedme/derived`).
 
 ## Notebooks
 

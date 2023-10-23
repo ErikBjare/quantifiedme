@@ -1,22 +1,20 @@
 import logging
 from datetime import timedelta
 
-import pandas as pd
 import numpy as np
-from joblib import Memory
+import pandas as pd
 import pint
+from joblib import Memory
 
 from qslang import Event
-from qslang.main import main as qslang_main, load_events
+from qslang.dose import ureg
+from qslang.main import load_events
+from qslang.main import main as qslang_main
+
 from ..config import load_config
+from ..cache import memory
 
 logger = logging.getLogger(__name__)
-
-ureg = pint.UnitRegistry()
-ureg.define("mc- = 10**-6 = µ-")
-
-memory = Memory(".cache", verbose=0)
-# memory.clear()
 
 
 class DuplicateFilter:
@@ -98,9 +96,11 @@ def load_df(events: list[Event] | None = None) -> pd.DataFrame:
 
     # Replace NaN with mean of non-zero doses
     for substance in set(df["substance"]):
-        doses = df[df["substance"] == substance]['dose']
+        doses = df[df["substance"] == substance]["dose"]
         mean_dose = doses.dropna().mean()
-        df.loc[df["substance"] == substance, ['dose']] = doses.replace(np.nan, mean_dose)
+        df.loc[df["substance"] == substance, ["dose"]] = doses.replace(
+            np.nan, mean_dose
+        )
 
     return df
 
@@ -148,13 +148,14 @@ def load_daily_df(events: list[Event] | None = None) -> pd.DataFrame:
 
     tags = {tag for e in events for tag in e.data.get("tags", [])}
     series_tags = {
-        f"tag:{tag}": to_series(df_src, tag=tag).replace(np.nan, 0)
-        for tag in tags
+        f"tag:{tag}": to_series(df_src, tag=tag).replace(np.nan, 0) for tag in tags
     }
 
     substances = {s for s in df_src["substance"] if s}
     series_subst = {
-        subst.lower().replace("-", "").replace(" ", ""): to_series(df_src, substance=subst)
+        subst.lower()
+        .replace("-", "")
+        .replace(" ", ""): to_series(df_src, substance=subst)
         for subst in substances
     }
     df = pd.concat([df, pd.DataFrame(series_tags), pd.DataFrame(series_subst)], axis=1)

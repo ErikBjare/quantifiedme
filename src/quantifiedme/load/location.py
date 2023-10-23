@@ -1,18 +1,15 @@
-import json
 import glob
+import json
 from datetime import datetime
 from pathlib import Path
 
-from tqdm import tqdm
 import click
-from matplotlib import pyplot as plt
-import numpy as np
 import pandas as pd
-import joblib
+from matplotlib import pyplot as plt
+from tqdm import tqdm
 
+from ..cache import memory
 from ..config import load_config
-
-memory = joblib.Memory(".cache")
 
 
 @memory.cache
@@ -35,7 +32,7 @@ def load_daily_df(whitelist: list[str] | None = None) -> pd.DataFrame:
     df = pd.DataFrame(index=pd.DatetimeIndex([]))
     dfs = load_all_dfs()
 
-    for location in (whitelist or [*locations.keys(), *dfs.keys()]):
+    for location in whitelist or [*locations.keys(), *dfs.keys()]:
         if location == me:
             continue
         if location in locations:
@@ -114,7 +111,7 @@ def colocate(df_person1, df_person2, verbose=False) -> pd.DataFrame:
 
     df_close = df[df["dist"] < 0.01].copy()
     df_close["duration"] = df.index.freq.nanos / 3600e9  # Normalize to hours
-    df_close = df_close.resample("24H").apply({"duration": np.sum})
+    df_close = df_close.resample("24H").apply({"duration": "sum"})
     df_close = df_close["duration"]
     # print(df_close)
     if verbose:
@@ -131,7 +128,7 @@ def _proximity_to_location(
     dist = dist[dist < threshold_radius]
     dist = pd.DataFrame(dist, columns=["dist"])
     dist["duration"] = 10 / 60
-    dist = dist.resample("24H").apply({"duration": np.sum})
+    dist = dist.resample("24H").apply({"duration": "sum"})
     if verbose:
         print(dist)
     return dist["duration"]

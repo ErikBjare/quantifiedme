@@ -3,9 +3,9 @@ from datetime import timedelta
 from pathlib import Path
 
 import click
-import pandas as pd
 import iso8601
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from ..config import load_config
 
@@ -21,25 +21,31 @@ def load_data():
 def load_sleep_df() -> pd.DataFrame:
     data = load_data()
     df = pd.DataFrame(data["sleep"])
-    df["summary_date"] = pd.to_datetime(df["summary_date"])
-    df = df.rename(columns={"summary_date": "timestamp"})
-    df = df.set_index("timestamp")
-    df["bedtime_start"] = pd.to_datetime(df["bedtime_start"])
-    df["bedtime_end"] = pd.to_datetime(df["bedtime_end"])
+    # summary_date is the "start" date
+    # https://cloud.ouraring.com/docs/sleep
+    # NOTE: Not sure why I have to subtract a day here, shouldn't be necessary according to docs,
+    #       but necessary for it to be correct.
+    df["summary_date"] = pd.to_datetime(df["summary_date"], utc=True) - timedelta(
+        days=1
+    )
+    df["bedtime_start"] = pd.to_datetime(df["bedtime_start"], utc=True)
+    df["bedtime_end"] = pd.to_datetime(df["bedtime_end"], utc=True)
     df = df.rename(
         columns={
+            "summary_date": "timestamp",
             "bedtime_start": "start",
             "bedtime_end": "end",
         }
     )
+    df = df.set_index("timestamp")
     df["duration"] = df["end"] - df["start"]
-    return df[["start", "end", "duration", "score"]]
+    return df[["start", "end", "duration", "score"]]  # type: ignore
 
 
 def load_readiness_df() -> pd.DataFrame:
     data = load_data()
     df = pd.DataFrame(data["readiness"])
-    df["summary_date"] = pd.to_datetime(df["summary_date"])
+    df["summary_date"] = pd.to_datetime(df["summary_date"], utc=True)
     df = df.set_index("summary_date")
     return df
 
@@ -47,7 +53,7 @@ def load_readiness_df() -> pd.DataFrame:
 def load_activity_df() -> pd.DataFrame:
     data = load_data()
     df = pd.DataFrame(data["activity"])
-    df["summary_date"] = pd.to_datetime(df["summary_date"])
+    df["summary_date"] = pd.to_datetime(df["summary_date"], utc=True)
     df = df.set_index("summary_date")
     return df
 
@@ -92,7 +98,7 @@ def load_heartrate_df() -> pd.DataFrame:
     df = df[df["bpm"] > 0]
 
     # rename bpm to hr
-    df = df.rename(columns={"bpm": "hr"})
+    df = df.rename(columns={"bpm": "hr"})  # type: ignore
 
     return df
 
@@ -100,9 +106,13 @@ def load_heartrate_df() -> pd.DataFrame:
 @click.command()
 def oura():
     """TODO, just loads all data"""
-    load_sleep_df()
-    load_activity_df()
-    load_readiness_df()
+    sleep = load_sleep_df()
+    activity = load_activity_df()
+    readiness = load_readiness_df()
+    print("Entries")
+    print(f"  Sleep: {len(sleep)}")
+    print(f"  Activity: {len(activity)}")
+    print(f"  Readiness: {len(readiness)}")
 
 
 if __name__ == "__main__":

@@ -2,24 +2,18 @@
 This was originally part of aw-research, which in turn was based on/refactored out of the QuantifiedMe notebook.
 """
 
-from datetime import datetime, timezone
 import logging
+from datetime import datetime, timezone
 from urllib.parse import urlparse
-
-from joblib import Memory
-
-from aw_core import Event
-from aw_client import ActivityWatchClient
 
 import aw_research
 import aw_research.classify
+from aw_client import ActivityWatchClient
+from aw_core import Event
 
-from ..cache import cache_dir
-
-from pathlib import Path
+from ..cache import memory
 
 logger = logging.getLogger(__name__)
-memory = Memory(cache_dir, verbose=0)
 
 
 @memory.cache(ignore=["awc"])

@@ -1,31 +1,29 @@
-import pickle
 import logging
-from datetime import datetime, timezone, timedelta
+import pickle
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
+import aw_research.classify
 import click
-import pandas as pd
 import numpy as np
-from joblib import Memory
-
-from aw_core import Event
+import pandas as pd
 from aw_client import ActivityWatchClient
+from aw_core import Event
+from aw_research.util import categorytime_per_day, split_into_weeks, verify_no_overlap
 from aw_transform.union_no_overlap import union_no_overlap
 
-import aw_research.classify
-from aw_research.util import verify_no_overlap, split_into_weeks, categorytime_per_day
-
+from ..cache import cache_dir, memory
+from ..config import _get_config_path, load_config
 from ..load.activitywatch import load_events as load_events_activitywatch
+from ..load.activitywatch_fake import create_fake_events
 from ..load.smartertime import load_events as load_events_smartertime
 
-from ..config import load_config, _get_config_path
-from ..cache import cache_dir
-
-from ..load.activitywatch_fake import create_fake_events
-
-memory = Memory(cache_dir, verbose=0)
 logger = logging.getLogger(__name__)
+
+
+def _cache_file(fast: bool) -> Path:
+    return cache_dir / ("events_fast.pickle" if fast else "events.pickle")
 
 
 def _get_aw_client(testing: bool) -> ActivityWatchClient:
@@ -33,6 +31,7 @@ def _get_aw_client(testing: bool) -> ActivityWatchClient:
     sec_aw = config["data"].get("activitywatch", {})
     port = sec_aw.get("port", 5600 if not testing else 5666)
     return ActivityWatchClient(port=port, testing=testing)
+
 
 DatasourceType = Literal["activitywatch", "smartertime_buckets", "fake", "toggl"]
 
@@ -67,17 +66,23 @@ def load_screentime(
 
     # Check for invalid sources
     for source in datasources:
-        assert source in ["activitywatch", "smartertime_buckets", "fake", "toggl"], f"Invalid source: {source}"
+        assert source in [
+            "activitywatch",
+            "smartertime_buckets",
+            "fake",
+            "toggl",
+        ], f"Invalid source: {source}"
 
     # Load hostnames from config if not specified
-    hostnames = hostnames or config["data"]["activitywatch"]["hostnames"]
+    hostnames_config = config["data"]["activitywatch"].get("hostnames", [])
+    hostnames = hostnames or hostnames_config
 
     events: list[Event] = []
 
     if "activitywatch" in datasources:
         if awc is None:
             awc = _get_aw_client(not personal)
-        for hostname in hostnames:
+        for hostname in hostnames or []:
             logger.info(f"Getting events for {hostname}...")
             # Split up into previous days and today, to take advantage of caching
             # TODO: Split up into whole days
@@ -123,24 +128,32 @@ def load_screentime(
 
     return events
 
-def load_screentime_cached(*args, since: datetime | None = None, fast = False, **kwargs) -> list[Event]:
+
+def load_screentime_cached(
+    since: datetime | None = None, fast=False, **kwargs
+) -> list[Event]:
     # returns screentime from picked cache produced by Dashboard.ipynb (or here)
-    path = Path(__file__).parent.parent.parent.parent / "notebooks" / ("events_fast.pickle" if fast else "events.pickle")
-    if path.exists():
+    # if older than 1 day, it will be regenerated
+    path = _cache_file(fast)
+    cutoff = datetime.now() - timedelta(days=1)
+    if path.exists() and datetime.fromtimestamp(path.stat().st_mtime) > cutoff:
         print(f"Loading from cache: {path}")
         with open(path, "rb") as f:
             events = pickle.load(f)
         # if fast didn't get us enough data to satisfy the query, we need to load the rest
         if fast and since and events[-1].timestamp < since:
             print("Fast couldn't satisfy since, trying again without fast")
-            events = load_screentime_cached(fast=False, **kwargs)
+            events = load_screentime_cached(since=since, fast=False, **kwargs)
         # trim according to since
         if since:
             events = [e for e in events if e.timestamp >= since]
         return events
     else:
-        return load_screentime(*args, **kwargs)
-    
+        events = load_screentime(since=since, **kwargs)
+        with open(path, "wb") as f:
+            pickle.dump(events, f)
+        return events
+
 
 def _join_events(
     old_events: list[Event], new_events: list[Event], source: str

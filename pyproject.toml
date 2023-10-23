@@ -19,7 +19,7 @@ aw_research = {git = "https://github.com/ActivityWatch/aw-research.git"}
 #aw_research = {path = "/Users/erb/Programming/activitywatch/other/aw-research", develop=true}
 qslang = {path = "./QSlang", develop=true}
 numpy = "*"
-scipy = ">=1.8"
+scipy = ">=1.10"
 #bottleneck = "1.2.3"
 pandas = "*"
 pandas-profiling = "*"
@@ -29,7 +29,7 @@ joblib = "*"
 tabulate = "*"
 pint = "*"
 toml = "*"
-togglcli = "*"
+#togglcli = "*"
 #togglcli = {path = "vendor/toggl-cli"}
 statsmodels = "*"
 types-click = "*"
@@ -62,7 +62,7 @@ filterwarnings = ["ignore::DeprecationWarning",]
 
 [tool.pyright]
 strictParameterNoneValue = false
-pythonVersion = "3.9"
+pythonVersion = "3.10"
 
 [build-system]
 requires = ["poetry-core"]

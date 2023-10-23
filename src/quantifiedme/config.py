@@ -1,10 +1,10 @@
-from typing import Any
+import logging
 from collections.abc import MutableMapping
 from pathlib import Path
-import logging
+from typing import Any
 
+import platformdirs
 import toml
-import appdirs
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ rootdir = srcdir.parent
 def _get_config_path(use_example=False) -> Path:
     if use_example:
         return Path(rootdir) / "config.example.toml"
-    return Path(appdirs.user_config_dir("quantifiedme")) / "config.toml"
+    return Path(platformdirs.user_config_dir("quantifiedme")) / "config.toml"
 
 
 def load_config(use_example=False) -> MutableMapping[str, Any]:
@@ -29,7 +29,7 @@ def load_config(use_example=False) -> MutableMapping[str, Any]:
         logger.warning("No config found, falling back to example config")
 
     with open(filepath) as f:
-        logger.info("Loading config from %s", filepath)
+        logger.debug("Loading config from %s", filepath)
         return toml.load(f)
 
 

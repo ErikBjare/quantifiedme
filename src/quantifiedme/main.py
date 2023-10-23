@@ -3,6 +3,7 @@ import click
 from .derived.all_df import all_df
 from .derived.screentime import screentime
 from .derived.sleep import sleep
+from .derived.heartrate import heartrate
 from .load.habitbull import habits
 from .load.location import locate
 from .load.oura import oura
@@ -15,7 +16,7 @@ def main():
     pass
 
 
-for subcmd in [locate, habits, oura, screentime, all_df, sleep]:
+for subcmd in [locate, habits, oura, screentime, all_df, sleep, heartrate]:
     main.add_command(subcmd)
 main.add_command(qslang, name="qslang")
 

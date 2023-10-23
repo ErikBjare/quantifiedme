@@ -8,6 +8,7 @@ import click
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from ..load.fitbit import load_sleep_df as load_fitbit_sleep_df
 from ..load.oura import load_sleep_df as load_oura_sleep_df
 from ..load.whoop import load_sleep_df as load_whoop_sleep_df
 
@@ -30,7 +31,7 @@ def _merge_several_sleep_records_per_day(df: pd.DataFrame) -> pd.DataFrame:
     if duplicates:
         df = df.groupby(df.index).agg({"start": "min", "end": "max", "score": "max"})  # type: ignore
         df["duration"] = df["end"] - df["start"]
-        logger.warning(f"Merged {duplicates} duplicate index entries")
+        logger.warning(f"Merged {duplicates} duplicate sleep entries")
     return df
 
 
@@ -41,16 +42,19 @@ def load_sleep_df(ignore: list[str] = [], aggregate=True) -> pd.DataFrame:
     df: pd.DataFrame = pd.DataFrame()
 
     # Fitbit
-    # df = join(df, load_fitbit_sleep_df(), rsuffix="_fitbit")
+    if "fitbit" not in ignore:
+        df_fitbit = load_fitbit_sleep_df()
+        df_fitbit = _merge_several_sleep_records_per_day(df_fitbit)
+        df = join(df, df_fitbit.add_suffix("_fitbit"))
 
     # Oura
     if "oura" not in ignore:
         df_oura = load_oura_sleep_df()
+        df_oura = _merge_several_sleep_records_per_day(df_oura)
         df = join(df, df_oura.add_suffix("_oura"))
 
     # Whoop
     if "whoop" not in ignore:
-        # FIXME: can return multiple sleep records per day, which we should merge
         df_whoop = load_whoop_sleep_df()
         df_whoop = _merge_several_sleep_records_per_day(df_whoop)
         df = join(df, df_whoop.add_suffix("_whoop"))
@@ -83,13 +87,16 @@ def join(df_target, df_source, **kwargs) -> pd.DataFrame:
 @click.option("--plot/--no-plot", default=False)
 @click.option("--dropna/--no-dropna", default=True)
 def sleep(aggregate=False, plot=False, dropna=True):
+    """Loads sleep data"""
     df = load_sleep_df(aggregate=aggregate)
     if dropna:
         df = df.dropna()
     if not aggregate:
-        print(df[["duration_whoop", "duration_oura", "score_oura", "score_whoop"]])
+        sources = ["fitbit", "oura", "whoop"]
+        cols = ["duration", "score"]
+        print(df[[f"{c}_{s}" for s in sources for c in cols]])
         # compare durations to ensure they are matching
-        df_durations = df[["duration_oura", "duration_whoop"]].apply(
+        df_durations = df[[f"duration_{s}" for s in sources]].apply(
             lambda x: x.dt.seconds / 60 / 60
         )
         print(df_durations.head())

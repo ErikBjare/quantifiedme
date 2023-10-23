@@ -1,5 +1,6 @@
 import logging
 import pickle
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
@@ -194,6 +195,9 @@ def classify(events: list[Event], personal: bool) -> list[Event]:
 def load_category_df(events: list[Event]) -> pd.DataFrame:
     tss = {}
     all_categories = list({t for e in events for t in e.data["$tags"]})
+    events_by_date = defaultdict(list)
+    for e in events:
+        events_by_date[e.timestamp.date()].append(e)
     for cat in all_categories:
         try:
             tss[cat] = categorytime_per_day(events, cat)
@@ -203,14 +207,17 @@ def load_category_df(events: list[Event]) -> pd.DataFrame:
     df = pd.DataFrame(tss)
     df = df.replace(np.nan, 0)
     df["All_cols"] = df.sum(axis=1)
-    df["All_events"] = sum([e.duration / 60 / 60 for e in events], timedelta(0))
+    df["All_events"] = [
+        sum((e.duration for e in events_by_date[d]), start=timedelta(0))
+        for d in df.index
+    ]
     return df
 
 
 @click.command()
 @click.option("--csv", is_flag=True, help="Print as CSV")
 def screentime(csv: bool):
-    """Load all screentime and print total duration"""
+    """Loads screentime data, and prints total duration."""
     hostnames = load_config()["data"]["activitywatch"]["hostnames"]
     events = load_screentime(
         since=datetime.now(tz=timezone.utc) - timedelta(days=90),

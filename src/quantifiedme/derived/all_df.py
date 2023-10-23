@@ -1,7 +1,6 @@
-import io
+import itertools
 import logging
 import os
-import sys
 from datetime import (
     date,
     datetime,
@@ -26,7 +25,9 @@ Sources = Literal["screentime", "heartrate", "drugs", "location", "sleep"]
 
 
 def load_all_df(
-    fast=True, screentime_events: list[Event] | None = None, ignore: list[Sources] = []
+    fast=True,
+    screentime_events: list[Event] | None = None,
+    ignore: list[Sources] = [],
 ) -> pd.DataFrame:
     """
     Loads a bunch of data into a single dataframe with one row per day.
@@ -139,25 +140,26 @@ def check_new_data_in_range(df_source: pd.DataFrame, df_target: pd.DataFrame) ->
 )
 @click.option(
     "--csv",
-    is_flag=True,
-    help="Print as CSV",
+    help="Save to CSV",
 )
-def all_df(fast=False, csv=False):
-    """loads all data and prints a summary"""
+def all_df(fast=False, csv=None):
+    """Loads all data and prints a summary."""
     logging.basicConfig(level=logging.INFO)
 
     # capture output if csv
-    if csv:
-        sys.stdout = io.StringIO()
     df = load_all_df(fast=fast)
-    if csv:
-        sys.stdout = sys.__stdout__
 
-    if csv:
-        print(df.to_csv())
-        return
+    # convert duration columns that are timedelta to hours
+    for col in itertools.chain(
+        df.columns[df.dtypes == "timedelta64[ns]"],
+        df.columns[df.dtypes == "timedelta64[us]"],
+    ):
+        df[col] = df[col].dt.total_seconds() / 3600
 
-    print(df)
+    # dont truncate output
+    pd.set_option("display.max_columns", None)
+    pd.set_option("display.max_rows", None)
+
     print(df.describe())
 
     # check for missing data
@@ -168,12 +170,22 @@ def all_df(fast=False, csv=False):
         print(df_days_na)
     print("Total days: ", len(df))
 
+    # drop columns with too much missing data
+    columns_to_drop = df.columns[df.isna().sum() > len(df) * 0.5]
+    df = df.dropna(axis=1, thresh=int(len(df) * 0.5))
+    print("Dropped columns with too much missing data: ", columns_to_drop)
+
     # keep days with full coverage
-    df = df.dropna()
-    print("Total days with full coverage: ", len(df))
+    # df = df.dropna()
+    # print("Total days with full coverage: ", len(df))
 
     print("Final dataframe:")
     print(df)
+
+    if csv:
+        print(f"Saving to {csv}")
+        with open(csv, "w") as f:
+            f.write(df.to_csv())
 
 
 if __name__ == "__main__":

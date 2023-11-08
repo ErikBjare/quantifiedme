@@ -1,3 +1,6 @@
+SRCDIRS := src/quantifiedme tests
+SRCFILES := $(shell find $(SRCDIRS) -name '*.py')
+
 # today
 date := $(shell date +%Y-%m-%d)
 
@@ -17,20 +20,21 @@ dashboard/build/dashboard.html:
 install:
 	poetry install
 
+lint:
+	poetry run ruff $(SRCDIRS)
+
 fmt:
-	black src/ tests/
+	poetry run ruff --fix $(SRCDIRS)
+	poetry run pyupgrade --py310-plus $(SRCFILES) --exit-zero-even-if-changed
+	poetry run black $(SRCDIRS)
 
 test:
-	poetry run python3 -m pytest tests/
+	poetry run python3 -m pytest -v tests/ --cov=quantifiedme --durations=5
 
 typecheck:
-	poetry run mypy --ignore-missing-imports --check-untyped-defs src/quantifiedme tests
+	poetry run mypy --ignore-missing-imports --check-untyped-defs $(SRCDIRS)
 
-precommit:
-	make fmt
-	poetry run pyupgrade --py310-plus src/quantifiedme/**.py
-	make typecheck
-	make test
+precommit: fmt typecheck test
 
 jupyter:
 	# From: https://stackoverflow.com/a/47296960/965332

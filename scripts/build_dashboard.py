@@ -1,3 +1,9 @@
+"""
+This is an old script that was used to generate a HTML dashboard.
+
+It has fallen into disrepair and is no longer used, but it is kept here for reference.
+"""
+
 import argparse
 import glob
 import json
@@ -7,8 +13,9 @@ import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import aw_research
+
 cache_dir = Path(".cache").absolute()
-aw_research_dir = Path("aw-research").absolute()
 
 
 env = os.environ.copy()
@@ -57,9 +64,8 @@ def _build_category_sunburst():
         dt = now - offset
         dt_str = dt.strftime("%Y-%m-%d")
         p = subprocess.run(
-            f"pipenv run python3 -m aw_research classify --start {dt_str} summary_plot --save {cache_dir}/{name}-sunburst.png",
+            f"poetry run python3 -m aw_research classify --start {dt_str} summary_plot --save {cache_dir}/{name}-sunburst.png",
             shell=True,
-            cwd=aw_research_dir,
             env=env,
             capture_output=True,
         )
@@ -83,9 +89,8 @@ def _build_category_timeplot():
     dt_str = dt.strftime("%Y-%m-%d")
     for cat in timeplot_cats:
         p = subprocess.run(
-            f"pipenv run python3 -m aw_research classify --start {dt_str} cat_plot '{cat}' --save '{cache_dir}/last60d-{cat}.png'",
+            f"poetry run python3 -m aw_research classify --start {dt_str} cat_plot '{cat}' --save '{cache_dir}/last60d-{cat}.png'",
             shell=True,
-            cwd=aw_research_dir,
             env=env,
             capture_output=True,
         )
@@ -101,7 +106,7 @@ def _build_location_plot():
     dt_str = dt.strftime("%Y-%m-%d")
     for name in people_colocate:
         p = subprocess.run(
-            f"pipenv run python3 scripts/location.py {name} --start {dt_str} --save {cache_dir}/last60d-location-{name}.png",
+            f"poetry run quantifiedme locate {name} --start {dt_str} --save {cache_dir}/last60d-location-{name}.png",
             shell=True,
             env=env,
             capture_output=True,
@@ -126,9 +131,8 @@ def _build_qslang_plots():
     dt_str = dt.strftime("%Y-%m-%d")
     for cat in qslang_cats:
         p = subprocess.run(
-            f"pipenv run python3 main.py --start {dt_str} --save ../.cache/last60d-substances-{cat.strip('#')}.png plot --count --daily --days '{cat}'",
+            f"poetry run quantifiedme qslang plot --start {dt_str} --save ../.cache/last60d-substances-{cat.strip('#')}.png plot --count --daily --days '{cat}'",
             shell=True,
-            cwd="QSlang/",
             env=env,
             capture_output=True,
         )
@@ -235,6 +239,7 @@ def _parse_args():
 def main():
     args = _parse_args()
     if args.clear:
+        aw_research_dir = Path(aw_research.__file__).parent
         shutil.rmtree(aw_research_dir / ".cache/joblib", ignore_errors=True)
     html = build(args.what)
     with open("dashboard.html", "w") as f:

@@ -29,7 +29,10 @@ fmt:
 	poetry run black $(SRCDIRS)
 
 test:
-	poetry run python3 -m pytest -v tests/ --cov=quantifiedme --durations=5
+	poetry run python3 -m pytest -v tests/ --durations=5 $(if $(NOCAPTURE),--capture=no) \
+		--cov=quantifiedme --cov-report xml --cov-report term-missing \
+		$(if $(SLOW),,-m "not slow") \
+		$(if $(PROFILE),--profile-svg)
 
 typecheck:
 	poetry run mypy --ignore-missing-imports --check-untyped-defs $(SRCDIRS)

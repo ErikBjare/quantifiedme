@@ -18,6 +18,9 @@ config.toml
 # data
 data
 personal
+*.csv
+*.json
+*.txt
 
 # generated
 *.html
@@ -31,6 +34,9 @@ dist
 htmlcov
 coverage.xml
 .coverage
+
+# profiling
+prof
 
 # macOS
 .DS_Store

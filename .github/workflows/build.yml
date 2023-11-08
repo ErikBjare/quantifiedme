@@ -41,7 +41,10 @@ jobs:
 
     - name: Run tests
       run: |
-        make test
+        make test SLOW=true
+
+    - name: Upload coverage
+      run: |
         bash <(curl -s https://codecov.io/bash)
 
   typecheck:

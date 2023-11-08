@@ -8,7 +8,7 @@ name = "john"
 date_offset_hours = 5
 
 [data]
-categories = "~/work/quantifiedme/quantifiedme/categories.example.toml"
+categories = "./categories.example.toml"
 #habitbull = "~/Downloads/HabitBullData.csv"
 #location = "~/location"
 #oura = "~/Downloads/oura_2020-02-27T09-07-47.json"

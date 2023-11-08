@@ -988,37 +988,6 @@ files = [
 ]
 
 [[package]]
-name = "gitdb"
-version = "4.0.11"
-description = "Git Object Database"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "gitdb-4.0.11-py3-none-any.whl", hash = "sha256:81a3407ddd2ee8df444cbacea00e2d038e40150acfa3001696fe0dcf1d3adfa4"},
-    {file = "gitdb-4.0.11.tar.gz", hash = "sha256:bf5421126136d6d0af55bc1e7c1af1c397a34f5b7bd79e776cd3e89785c2b04b"},
-]
-
-[package.dependencies]
-smmap = ">=3.0.1,<6"
-
-[[package]]
-name = "gitpython"
-version = "3.1.40"
-description = "GitPython is a Python library used to interact with Git repositories"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "GitPython-3.1.40-py3-none-any.whl", hash = "sha256:cf14627d5a8049ffbf49915732e5eddbe8134c3bdb9d476e6182b676fc573f8a"},
-    {file = "GitPython-3.1.40.tar.gz", hash = "sha256:22b126e9ffb671fdd0c129796343a02bf67bf2994b35449ffc9321aa755e18a4"},
-]
-
-[package.dependencies]
-gitdb = ">=4.0.1,<5"
-
-[package.extras]
-test = ["black", "coverage[toml]", "ddt (>=1.1.1,!=1.4.3)", "mock", "mypy", "pre-commit", "pytest", "pytest-cov", "pytest-instafail", "pytest-subtests", "pytest-sugar"]
-
-[[package]]
 name = "google-api-core"
 version = "2.13.0"
 description = "Google API client core library"
@@ -1175,21 +1144,6 @@ numpy = "*"
 pillow = "*"
 PyWavelets = "*"
 scipy = "*"
-
-[[package]]
-name = "importlib-resources"
-version = "6.1.1"
-description = "Read resources from Python packages"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "importlib_resources-6.1.1-py3-none-any.whl", hash = "sha256:e8bf90d8213b486f428c9c39714b920041cb02c184686a3dee24905aaa8105d6"},
-    {file = "importlib_resources-6.1.1.tar.gz", hash = "sha256:3893a00122eafde6894c59914446a512f728a0c1a45f9bb9b63721b6bacf0b4a"},
-]
-
-[package.extras]
-docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (<7.2.5)", "sphinx (>=3.5)", "sphinx-lint"]
-testing = ["pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-mypy (>=0.9.1)", "pytest-ruff", "zipp (>=3.17)"]
 
 [[package]]
 name = "influxdb-client"
@@ -1607,23 +1561,6 @@ websocket-client = "*"
 [package.extras]
 docs = ["ipykernel", "jinja2", "jupyter-client", "jupyter-server", "myst-parser", "nbformat", "prometheus-client", "pydata-sphinx-theme", "send2trash", "sphinx-autodoc-typehints", "sphinxcontrib-github-alt", "sphinxcontrib-openapi (>=0.8.0)", "sphinxcontrib-spelling", "sphinxemoji", "tornado", "typing-extensions"]
 test = ["flaky", "ipykernel", "pre-commit", "pytest (>=7.0)", "pytest-console-scripts", "pytest-jupyter[server] (>=0.4)", "pytest-timeout", "requests"]
-
-[[package]]
-name = "jupyter-server-mathjax"
-version = "0.2.6"
-description = "MathJax resources as a Jupyter Server Extension."
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "jupyter_server_mathjax-0.2.6-py3-none-any.whl", hash = "sha256:416389dde2010df46d5fbbb7adb087a5607111070af65a1445391040f2babb5e"},
-    {file = "jupyter_server_mathjax-0.2.6.tar.gz", hash = "sha256:bb1e6b6dc0686c1fe386a22b5886163db548893a99c2810c36399e9c4ca23943"},
-]
-
-[package.dependencies]
-jupyter-server = ">=1.1"
-
-[package.extras]
-test = ["jupyter-server[test]", "pytest"]
 
 [[package]]
 name = "jupyter-server-terminals"
@@ -2127,32 +2064,6 @@ qtpng = ["pyqtwebengine (>=5.15)"]
 serve = ["tornado (>=6.1)"]
 test = ["flaky", "ipykernel", "ipywidgets (>=7)", "pytest"]
 webpdf = ["playwright"]
-
-[[package]]
-name = "nbdime"
-version = "3.2.1"
-description = "Diff and merge of Jupyter Notebooks"
-optional = false
-python-versions = ">=3.6"
-files = [
-    {file = "nbdime-3.2.1-py2.py3-none-any.whl", hash = "sha256:a99fed2399fd939e2e577db4bb6e957aac860af4cf583044b723cc9a448c644e"},
-    {file = "nbdime-3.2.1.tar.gz", hash = "sha256:31409a30f848ffc6b32540697e82d5a0a1b84dcc32716ca74e78bcc4b457c453"},
-]
-
-[package.dependencies]
-colorama = "*"
-GitPython = "<2.1.4 || >2.1.4,<2.1.5 || >2.1.5,<2.1.6 || >2.1.6"
-jinja2 = ">=2.9"
-jupyter-server = "*"
-jupyter-server-mathjax = ">=0.2.2"
-nbformat = "*"
-pygments = "*"
-requests = "*"
-tornado = "*"
-
-[package.extras]
-docs = ["recommonmark", "sphinx", "sphinx-rtd-theme"]
-test = ["jsonschema", "jupyter-server[test]", "notebook", "pytest (>=3.6)", "pytest-cov", "pytest-timeout", "pytest-tornado", "requests", "tabulate"]
 
 [[package]]
 name = "nbformat"
@@ -3049,33 +2960,6 @@ pytest = ">=4.6"
 testing = ["fields", "hunter", "process-tests", "pytest-xdist", "six", "virtualenv"]
 
 [[package]]
-name = "pytest-notebook"
-version = "0.6.0"
-description = "A pytest plugin for testing Jupyter Notebooks"
-optional = false
-python-versions = ">=3.5"
-files = [
-    {file = "pytest-notebook-0.6.0.tar.gz", hash = "sha256:a6017ad79fea8fd04da313f91fdce6007fce21a3b2e5b9a137295274a0a68846"},
-    {file = "pytest_notebook-0.6.0-py3-none-any.whl", hash = "sha256:eac4909e982f028c7cc1f5622e6db96fe951170207b041975072d5f41b167739"},
-]
-
-[package.dependencies]
-attrs = "*"
-importlib-resources = "*"
-jsonschema = "*"
-jupyter-client = "*"
-nbconvert = "*"
-nbdime = "*"
-nbformat = "*"
-pytest = ">=3.5.0"
-
-[package.extras]
-code-style = ["black", "doc8 (>=0.8.0,<0.9.0)", "flake8 (>=3.7.0,<3.8.0)", "pre-commit (==1.17.0)"]
-docs = ["coverage", "ipypublish (>=0.10.7)", "ruamel.yaml", "ruamel.yaml.clib", "sphinx (>=1.6)", "sphinx-rtd-theme"]
-flake8-plugins = ["flake8-builtins", "flake8-comprehensions", "flake8-docstrings", "import-order"]
-testing = ["beautifulsoup4 (==4.8.0)", "black (==19.3b0)", "coverage", "pytest-cov", "pytest-regressions"]
-
-[[package]]
 name = "pytest-profiling"
 version = "1.7.0"
 description = "Profiling plugin for py.test"
@@ -3855,17 +3739,6 @@ files = [
 ]
 
 [[package]]
-name = "smmap"
-version = "5.0.1"
-description = "A pure Python implementation of a sliding window memory map manager"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "smmap-5.0.1-py3-none-any.whl", hash = "sha256:e6d8668fa5f93e706934a62d7b4db19c8d9eb8cf2adbb75ef1b675aa332b69da"},
-    {file = "smmap-5.0.1.tar.gz", hash = "sha256:dceeb6c0028fdb6734471eb07c0cd2aae706ccaecab45965ee83f11c8d3b1f62"},
-]
-
-[[package]]
 name = "sniffio"
 version = "1.3.0"
 description = "Sniff out which async library your code is running under"
@@ -4328,4 +4201,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10, <3.12"
-content-hash = "99a17b17295f7c6adcd0a1b98e38c4aca1d3070dc349fbb1c6305955ad363806"
+content-hash = "ed25e00af48c4c449685d882ed9aa3b8173ef4394584524ea613388adf14e93a"

@@ -1,10 +1,11 @@
-import os
-import subprocess
+import argparse
+import glob
 import json
-from pathlib import Path
-
+import os
+import shutil
+import subprocess
 from datetime import datetime, timedelta
-
+from pathlib import Path
 
 cache_dir = Path(".cache").absolute()
 aw_research_dir = Path("aw-research").absolute()
@@ -16,7 +17,7 @@ env["PIPENV_IGNORE_VIRTUALENVS"] = "1"
 
 def _read_qslang_cats():
     with open("./data/substance-categories.txt") as f:
-        return [l.strip() for l in f.readlines()]
+        return [line.strip() for line in f.readlines()]
 
 
 qslang_cats = _read_qslang_cats()
@@ -24,7 +25,7 @@ qslang_cats = _read_qslang_cats()
 
 def _read_people_colocate():
     with open("./data/people-colocate.txt") as f:
-        return [l.strip() for l in f.readlines()]
+        return [line.strip() for line in f.readlines()]
 
 
 people_colocate = _read_people_colocate()
@@ -66,7 +67,9 @@ def _build_category_sunburst():
             print(str(p.stderr, "utf-8"))
         lines = str(p.stdout, "utf-8").split("\n")
         duration = next(
-            l.strip().lstrip("Duration:").strip() for l in lines if "Duration" in l
+            line.strip().lstrip("Duration:").strip()
+            for line in lines
+            if "Duration" in line
         )
         with open(f".cache/{name}-sunburst.json", "w") as f:
             json.dump({"duration": duration}, f)
@@ -109,8 +112,6 @@ def _build_location_plot():
 
 
 def _read_metadata():
-    import glob
-
     metadata = {}
     for filepath in glob.glob(".cache/*.json"):
         name = filepath.split("/")[-1].rstrip(".json")
@@ -225,8 +226,6 @@ def build(what=None):
 
 
 def _parse_args():
-    import argparse
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--clear", action="store_true")
     parser.add_argument("--what")
@@ -234,8 +233,6 @@ def _parse_args():
 
 
 def main():
-    import shutil
-
     args = _parse_args()
     if args.clear:
         shutil.rmtree(aw_research_dir / ".cache/joblib", ignore_errors=True)

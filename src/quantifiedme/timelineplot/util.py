@@ -1,4 +1,4 @@
-from typing import Tuple, TypeVar
+from typing import TypeVar
 from collections.abc import Iterable, Generator
 
 T = TypeVar("T")

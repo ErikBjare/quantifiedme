@@ -64,7 +64,7 @@ def load_sleep_df(ignore: list[str] = [], aggregate=True) -> pd.DataFrame:
     # perform some aggregations
     if aggregate:
         keys: list[str] = list(
-            set(col.split("_")[0] for col in df.columns) & {"duration", "score"}
+            {col.split("_")[0] for col in df.columns} & {"duration", "score"}
         )
         for key in keys:
             subkeys = df.columns[df.columns.str.startswith(key)]

@@ -65,7 +65,7 @@ def _load_smartertime_events(since: datetime, filepath) -> list[Event]:
 
 def read_csv_to_events(filepath):
     events = []
-    with open(filepath, "r") as f:
+    with open(filepath) as f:
         c = csv.DictReader(f)
         for r in c:
             # print(r)

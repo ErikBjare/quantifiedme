@@ -1,28 +1,19 @@
+import pickle
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-import pickle
-
-import pytest
 
 import pandas as pd
-
+import pytest
 from aw_core import Event
-
+from qslang import Event as QSEvent
 from quantifiedme.config import has_config
-from quantifiedme.load.qslang import load_df, to_series
-from quantifiedme.derived.screentime import load_screentime, load_category_df
-from quantifiedme.load.toggl_ import load_toggl
+from quantifiedme.derived.all_df import load_all_df
+from quantifiedme.derived.screentime import classify, load_category_df, load_screentime
 from quantifiedme.load.habitbull import load_df as load_habitbull_df
 from quantifiedme.load.location import load_all_dfs
-from quantifiedme.load.oura import (
-    load_sleep_df,
-    load_activity_df,
-    load_readiness_df,
-)
-from quantifiedme.derived.all_df import load_all_df
-from quantifiedme.derived.screentime import classify
-
-from qslang import Event as QSEvent
+from quantifiedme.load.oura import load_activity_df, load_readiness_df, load_sleep_df
+from quantifiedme.load.qslang import load_df, to_series
+from quantifiedme.load.toggl_ import load_toggl
 
 now = datetime.now(tz=timezone.utc)
 
@@ -53,9 +44,14 @@ def test_load_example_events():
     assert events
 
 
+@pytest.mark.slow
 def test_load_all_df():
+    print("loading events")
     events = load_example_events()
-    df = load_all_df(events, ignore=["heartrate", "location", "sleep"])
+    print("loaded events")
+    df = load_all_df(
+        fast=True, screentime_events=events, ignore=["heartrate", "location", "sleep"]
+    )
     print(df)
 
 
@@ -119,6 +115,7 @@ def test_qslang_unknown_dose():
     assert 0.00015 == df.iloc[0]["dose"]
 
 
+@pytest.mark.slow
 def test_load_screentime():
     events = load_screentime(
         datetime.now(tz=timezone.utc) - timedelta(days=90),

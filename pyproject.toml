@@ -55,13 +55,10 @@ pandas-stubs = "^2.1.1.230928"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "--cov=quantifiedme --cov-report=xml --cov-report=html --cov-report=term" # --profile --cov-report=term
-testpaths = [
-    "src/quantifiedme",
-    "tests",
-]
-python_files = ["*.py",]
 filterwarnings = ["ignore::DeprecationWarning",]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
 
 [tool.pyright]
 strictParameterNoneValue = false

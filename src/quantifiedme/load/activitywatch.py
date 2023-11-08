@@ -51,17 +51,3 @@ def load_events(
 
     events = [e for e in events if e.data]
     return events
-
-
-def test_load_events():
-    awc = ActivityWatchClient("testloadevents", port=5667, testing=True)
-    hostname = "erb-main2-arch"
-    since = datetime(2020, 1, 1, tzinfo=timezone.utc)
-    end = datetime(2020, 1, 2, tzinfo=timezone.utc)
-    events = load_events(awc, hostname, since, end)
-    assert events
-    print(len(events))
-
-
-if __name__ == "__main__":
-    test_load_events()

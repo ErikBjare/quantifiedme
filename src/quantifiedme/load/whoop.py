@@ -68,18 +68,3 @@ def load_sleep_df() -> pd.DataFrame:
     df.index.name = "timestamp"
 
     return df
-
-
-def test_load_whoop_heartrate():
-    df = load_heartrate_df()
-    print(df.head())
-
-
-def test_load_whoop_sleep():
-    df = load_sleep_df()
-    print(df.head())
-
-
-if __name__ == "__main__":
-    test_load_whoop_sleep()
-    test_load_whoop_heartrate()

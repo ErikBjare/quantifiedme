@@ -1,13 +1,14 @@
 # Code originally from now deprecated repo: https://github.com/ActivityWatch/aw-importer-smartertime
 
 import csv
-from datetime import datetime, timedelta, timezone
-import secrets
 import json
+import secrets
+import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from aw_core.models import Event
 import aw_client
+from aw_core.models import Event
 from aw_transform.union_no_overlap import union_no_overlap
 
 from ..config import load_config
@@ -130,22 +131,9 @@ def convert_csv_to_awbucket(filepath):
     # import_to_awserver(bucket)
 
 
-def test_load_smartertime_events():
-    events = _load_smartertime_events(
-        datetime(2020, 1, 1),
-        filepath=Path(
-            "~/Programming/quantifiedme/data/smartertime/smartertime_export_erb-f3_2022-02-01_efa36e6a.awbucket.json"
-        ).expanduser(),
-    )
-    assert len(events) > 0
-
-
 if __name__ == "__main__":
-    import sys
-
-    if len(sys.argv) > 1 and sys.argv[1] == "convert":
-        assert len(sys.argv) > 2
-        filename = sys.argv.pop()
-        convert_csv_to_awbucket(filename)
-    else:
-        test_load_smartertime_events()
+    assert len(sys.argv) > 2 and sys.argv[1] in [
+        "convert"
+    ], "Usage: smartertime.py convert <filename>"
+    filename = sys.argv.pop()
+    convert_csv_to_awbucket(filename)

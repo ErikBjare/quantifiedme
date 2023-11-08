@@ -6,8 +6,8 @@ We will load data from Neurosity's file exports provided by Neurofusion.
 We will also load signal quality data, to help us filter out bad data.
 """
 
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 
 import pandas as pd
 
@@ -33,7 +33,7 @@ def load_data():
     for timestamp, files in filesets.items():
         result = load_session(files)
         # pprint(result)
-        df = df.append(result, ignore_index=True)
+        df = pd.concat([df, pd.DataFrame(result)], ignore_index=True)
     return df
 
 
@@ -58,7 +58,7 @@ def load_session(files: dict) -> dict:
     # we have to deal with the channels, such as CP3_alpha, CP3_beta, etc.
     # for now, we will just average them all together
     channels, bands = zip(*[c.split("_") for c in df_pbb.columns])
-    channels, bands = list(set(channels)), list(set(bands))
+    channels, bands = tuple(set(channels)), tuple(set(bands))
 
     df = pd.DataFrame(index=df_pbb.index)
     for band in bands:

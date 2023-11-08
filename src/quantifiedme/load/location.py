@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 import click
+import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from tqdm import tqdm
@@ -126,12 +127,12 @@ def _proximity_to_location(
     lat, lon = loc
     dist = ((df["lat"] - lat) ** 2 + (df["long"] - lon) ** 2) ** 0.5
     dist = dist[dist < threshold_radius]
-    dist = pd.DataFrame(dist, columns=["dist"])
-    dist["duration"] = 10 / 60
-    dist = dist.resample("24H").apply({"duration": "sum"})
+    df_dist = pd.DataFrame(dist, columns=["dist"])
+    df_dist["duration"] = 10 / 60
+    df_dist = df_dist.resample("24H").apply({"duration": np.sum})  # type: ignore
     if verbose:
-        print(dist)
-    return dist["duration"]
+        print(df_dist)
+    return df_dist["duration"]
 
 
 def plot_df_duration(df, title, save: str | None = None) -> None:

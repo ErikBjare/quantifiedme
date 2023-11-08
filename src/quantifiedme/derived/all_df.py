@@ -56,8 +56,9 @@ def load_all_df(
     if "drugs" not in ignore:
         print("\n# Adding drugs")
         # keep only columns starting with "tag"
-        df_drugs = load_drugs_df()
-        df_drugs = df_drugs[df_drugs.columns[df_drugs.columns.str.startswith("tag")]]
+        df_drugs: pd.DataFrame = load_drugs_df()
+        columns = df_drugs.columns[df_drugs.columns.str.startswith("tag")]
+        df_drugs = df_drugs[columns]  # type: ignore
         df = join(df, df_drugs)
 
     if "location" not in ignore:

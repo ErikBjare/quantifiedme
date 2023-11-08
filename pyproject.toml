@@ -13,7 +13,7 @@ quantifiedme = "quantifiedme.main:main"
 
 [tool.poetry.dependencies]
 python = "^3.10, <3.12"  # scipy has a <3.12 constraint
-aw-core = "^0.5"
+aw-core = "^0.5.16"
 aw-client = "^0.5"
 aw_research = {git = "https://github.com/ActivityWatch/aw-research.git"}
 #aw_research = {path = "/Users/erb/Programming/activitywatch/other/aw-research", develop=true}
@@ -49,6 +49,7 @@ mypy = "*"
 black = "*"
 ipympl = "*"
 pyupgrade = "*"
+ruff = "^0.1.4"
 
 [tool.pytest.ini_options]
 minversion = "6.0"

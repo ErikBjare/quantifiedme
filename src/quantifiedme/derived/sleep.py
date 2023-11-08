@@ -79,7 +79,7 @@ def join(df_target, df_source, **kwargs) -> pd.DataFrame:
     if df_target.empty:
         return df_source
     else:
-        return df_target.join(df_source, **kwargs)
+        return df_target.join(df_source, how="outer", **kwargs)
 
 
 @click.command()

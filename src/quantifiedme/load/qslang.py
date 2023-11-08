@@ -4,15 +4,14 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 import pint
-from joblib import Memory
 
 from qslang import Event
 from qslang.dose import ureg
 from qslang.main import load_events
 from qslang.main import main as qslang_main
 
-from ..config import load_config
 from ..cache import memory
+from ..config import load_config
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +158,7 @@ def load_daily_df(events: list[Event] | None = None) -> pd.DataFrame:
         for subst in substances
     }
     df = pd.concat([df, pd.DataFrame(series_tags), pd.DataFrame(series_subst)], axis=1)
+    df = df.fillna(0)
 
     return df
 

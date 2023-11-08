@@ -51,6 +51,7 @@ black = "*"
 ipympl = "*"
 pyupgrade = "*"
 ruff = "*"
+pandas-stubs = "^2.1.1.230928"
 
 [tool.pytest.ini_options]
 minversion = "6.0"

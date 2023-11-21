@@ -27,7 +27,7 @@ jobs:
       with:
         aw-server: ${{ matrix.aw-server }}
         aw-version: ${{ matrix.aw-version }}
-        aw-testing: true
+        aw-testing: false
         fakedata: true
 
     - name: Install poetry

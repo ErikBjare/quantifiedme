@@ -15,7 +15,7 @@ jobs:
       matrix:
         python-version: ['3.10']
         aw-server: ["aw-server", "aw-server-rust"]
-        aw-version: ["v0.12.1"]
+        aw-version: ["v0.12.3b13"]
 
     steps:
     - uses: actions/checkout@v3

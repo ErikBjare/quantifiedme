@@ -36,6 +36,7 @@ types-click = "*"
 types-toml = "*"
 influxdb-client = {version = "*", optional = true}
 nbval = "*"
+gradio = "^4.36.1"
 
 [tool.poetry.group.dev.dependencies]
 jupyterlab = "*"

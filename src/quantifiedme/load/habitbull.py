@@ -1,8 +1,9 @@
-import click
-import pandas as pd
-import matplotlib.pyplot as plt
-import calplot
 from pathlib import Path
+
+import calplot
+import click
+import matplotlib.pyplot as plt
+import pandas as pd
 
 from ..config import load_config
 
@@ -22,7 +23,7 @@ def plot_calendar(df, habitname, show=True, year=None):
     if year:
         calplot.yearplot(df["Value"], year=year)
     else:
-        calplot.calendarplot(df["Value"])
+        calplot.calplot(df["Value"])
     if show:
         plt.show()
 

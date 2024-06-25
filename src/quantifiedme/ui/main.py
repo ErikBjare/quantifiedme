@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from functools import cache
 
+import calplot
 import gradio as gr
 import pandas as pd
 from quantifiedme.derived.all_df import load_all_df
@@ -65,7 +66,6 @@ def plot_cat(df: pd.DataFrame | None, col: str | None = None) -> gr.BarPlot:
     y_lim = None
     if col:
         assert df is not None
-        print(f"Col changed to {col}")
         df = df.reset_index().rename(columns={"index": "date"})
         df = df[["date", col]]
         y_max = max([v for v in df[col] if isinstance(v, (int, float))], default=0)
@@ -161,7 +161,6 @@ def _sort_cols(df: pd.DataFrame) -> pd.DataFrame:
 
 def _prepare_df_for_view(df: pd.DataFrame) -> pd.DataFrame:
     df = df.reset_index().rename(columns={"index": "date"})
-    print(df)
     print("Duplicates in date", df.duplicated("date").sum())
     df["date"] = pd.to_datetime(df["date"])
     df["date"] = df["date"].dt.date
@@ -289,20 +288,92 @@ def view_plot_correlations():
 def view_drugs():
     """View to explore drugs data"""
 
-    def load():
+    def load() -> tuple[pd.DataFrame, pd.DataFrame]:
         daily_df = load_qslang_daily_df()
-        df = load_qslang_df()
+        df: pd.DataFrame = load_qslang_df()  # type: ignore
         return daily_df, df
 
     button_load = gr.Button("Load")
 
     daily_df, df = load()
-    daily_df_el = gr.Dataframe(daily_df)
-    df_el = gr.Dataframe(df)
+
+    with gr.Blocks():
+        daily_df_el = gr.Dataframe(daily_df, label="Daily dosecounts")
+
+    with gr.Blocks():
+        df_el = gr.Dataframe(df, label="Doses")
 
     button_load.click(load, [], [daily_df_el, df_el])
 
-    return daily_df_el, df_el
+    def plot_cal(substance: str, df: pd.DataFrame) -> gr.Plot:
+        if not substance:
+            return gr.Plot()
+
+        # filter
+        df = df[df["substance"] == substance]
+
+        # sum the doses by date (multiple doses per day)
+        df = df.groupby(["date"])["dose"].sum()
+        df.index = pd.to_datetime(df.index)
+
+        fig, _ = calplot.calplot(df)
+        return gr.Plot(fig)
+
+    def dropdown_substances(df: pd.DataFrame) -> gr.Dropdown:
+        # if no data, return empty choices
+        if df.empty or len(df) == 0:
+            return gr.Dropdown(choices=[], value=None)
+        choices = df["substance"].unique().tolist()
+        return gr.Dropdown(
+            label="Substance",
+            choices=choices,
+            value=choices[0],
+            interactive=True,
+        )
+
+    with gr.Blocks():
+        substance_dropdown = dropdown_substances(df)
+        plot_cal_output = plot_cal("Niacinamide", df)
+
+        # when loaded, update the dropdown
+        df_el.change(
+            fn=dropdown_substances,
+            inputs=[df_el],
+            outputs=[substance_dropdown],
+        )
+
+        # when substance changes, update the plot
+        substance_dropdown.change(
+            fn=plot_cal, inputs=[substance_dropdown, df_el], outputs=[plot_cal_output]
+        )
+
+        gr.Interface(
+            title="Calendar plot of doses",
+            fn=plot_cal,
+            inputs=[substance_dropdown, df_el],
+            outputs=[plot_cal_output],
+            allow_flagging="never",
+        )
+
+    with gr.Row():
+        with gr.Blocks():
+            # top substances
+            top_substances = (
+                df.groupby("substance")["dose"].count().sort_values(ascending=False)
+            )
+            top_substances = top_substances.reset_index().rename(
+                columns={"substance": "Substance", "dose": "Count"}
+            )
+            gr.Dataframe(top_substances, label="Top substances")
+
+        with gr.Blocks():
+            # top tags
+            # FIXME: only supports one tag per dose, but multiple tags can match
+            top_tags = df.groupby("tag")["dose"].count().sort_values(ascending=False)
+            top_tags = top_tags.reset_index().rename(
+                columns={"tag": "Tag", "dose": "Count"}
+            )
+            gr.Dataframe(top_tags, label="Top tags")
 
 
 def view_sleep():
@@ -315,16 +386,32 @@ def view_sleep():
     button_load = gr.Button("Load")
 
     df = load()
-    df_el = gr.Dataframe(df)
+    df_el = gr.Dataframe(df, label="Sleep data")
 
     button_load.click(load, [], [df_el])
 
 
 def view_time():
     """View to explore time data"""
-    pass
+    gr.Markdown(
+        """## Time
+
+TODO
+"""
+    )
+    # TODO: show time data in some high-level way
 
 
 def view_sources():
     """View to show sources of data"""
-    pass
+    gr.Markdown(
+        """## Sources
+
+- Time
+- Sleep
+- Drugs
+- Exercise
+- Heart rate
+""".strip()
+    )
+    # TODO: display freshness of data

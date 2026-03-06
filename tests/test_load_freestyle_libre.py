@@ -42,6 +42,7 @@ def test_load_glucose_df_mmol(sample_csv_mmol: Path) -> None:
     assert "glucose" in df.columns
     assert "record_type" in df.columns
     assert df.index.name == "timestamp"
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert df.index.tz is not None  # timezone-aware
     # 5 historic + 1 scan = 6 readings
     assert len(df) == 6
@@ -84,6 +85,7 @@ def test_create_fake_glucose_df() -> None:
 
     assert isinstance(df, pd.DataFrame)
     assert "glucose" in df.columns
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert df.index.tz is not None
     # Jan 1 00:00 to Jan 7 00:00 inclusive = 6*24*4 + 1 = 577 readings at 15min intervals
     assert len(df) == 577

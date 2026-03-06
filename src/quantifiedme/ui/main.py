@@ -313,10 +313,10 @@ def view_drugs():
         df = df[df["substance"] == substance]
 
         # sum the doses by date (multiple doses per day)
-        df = df.groupby(["date"])["dose"].sum()
-        df.index = pd.to_datetime(df.index)
+        doses = df.groupby(["date"])["dose"].sum()
+        doses.index = pd.to_datetime(doses.index)
 
-        fig, _ = calplot.calplot(df)
+        fig, _ = calplot.calplot(doses)
         return gr.Plot(fig)
 
     def dropdown_substances(df: pd.DataFrame) -> gr.Dropdown:
@@ -359,19 +359,23 @@ def view_drugs():
         with gr.Blocks():
             # top substances
             top_substances = (
-                df.groupby("substance")["dose"].count().sort_values(ascending=False)
-            )
-            top_substances = top_substances.reset_index().rename(
-                columns={"substance": "Substance", "dose": "Count"}
+                df.groupby("substance")["dose"]
+                .count()
+                .sort_values(ascending=False)
+                .reset_index()
+                .rename(columns={"substance": "Substance", "dose": "Count"})
             )
             gr.Dataframe(top_substances, label="Top substances")
 
         with gr.Blocks():
             # top tags
             # FIXME: only supports one tag per dose, but multiple tags can match
-            top_tags = df.groupby("tag")["dose"].count().sort_values(ascending=False)
-            top_tags = top_tags.reset_index().rename(
-                columns={"tag": "Tag", "dose": "Count"}
+            top_tags = (
+                df.groupby("tag")["dose"]
+                .count()
+                .sort_values(ascending=False)
+                .reset_index()
+                .rename(columns={"tag": "Tag", "dose": "Count"})
             )
             gr.Dataframe(top_tags, label="Top tags")
 

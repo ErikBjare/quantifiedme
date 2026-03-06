@@ -43,7 +43,7 @@ def test_load_glucose_df_mmol(sample_csv_mmol: Path) -> None:
     assert "record_type" in df.columns
     assert df.index.name == "timestamp"
     assert isinstance(df.index, pd.DatetimeIndex)
-    assert df.index.tz is not None  # timezone-aware
+    assert str(df.index.tz) == "UTC"  # must be explicitly UTC, not just tz-aware
     # 5 historic + 1 scan = 6 readings
     assert len(df) == 6
 
@@ -86,7 +86,7 @@ def test_create_fake_glucose_df() -> None:
     assert isinstance(df, pd.DataFrame)
     assert "glucose" in df.columns
     assert isinstance(df.index, pd.DatetimeIndex)
-    assert df.index.tz is not None
+    assert str(df.index.tz) == "UTC"
     # Jan 1 00:00 to Jan 7 00:00 inclusive = 6*24*4 + 1 = 577 readings at 15min intervals
     assert len(df) == 577
     # Values should be physiologically plausible
@@ -107,3 +107,14 @@ def test_load_glucose_mgdl_unit(sample_csv_mmol: Path) -> None:
     # mg/dL values should be ~18x higher than mmol/L
     ratio = (df_mgdl["glucose"] / df_mmol["glucose"]).mean()
     assert abs(ratio - 18.018) < 0.1
+
+
+def test_load_glucose_df_missing_file(tmp_path: Path) -> None:
+    missing = tmp_path / "nonexistent.csv"
+    with pytest.raises(FileNotFoundError, match="nonexistent.csv"):
+        load_glucose_df(path=missing)
+
+
+def test_load_glucose_df_invalid_unit(sample_csv_mmol: Path) -> None:
+    with pytest.raises(ValueError, match="Invalid unit"):
+        load_glucose_df(path=sample_csv_mmol, unit="kg/m2")

@@ -112,6 +112,18 @@ def test_load_sensor_df_legacy_filter_entity(legacy_db: Path) -> None:
     assert (df["entity_id"] == "sensor.temperature_bedroom").all()
 
 
+def test_load_sensor_df_empty_entity_ids(modern_db: Path) -> None:
+    """entity_ids=[] should return empty DataFrame, not all entities."""
+    df = load_sensor_df(path=modern_db, entity_ids=[])
+
+    assert isinstance(df, pd.DataFrame)
+    assert len(df) == 0
+    assert "entity_id" in df.columns
+    assert "state" in df.columns
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert str(df.index.tz) == "UTC"
+
+
 def test_load_sensor_df_missing_file(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError, match="Home Assistant database not found"):
         load_sensor_df(path=tmp_path / "nonexistent.db")

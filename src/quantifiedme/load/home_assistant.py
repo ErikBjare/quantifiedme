@@ -12,6 +12,7 @@ through Home Assistant — current and future sensors automatically included.
 """
 
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 import pandas as pd
@@ -49,8 +50,12 @@ def load_sensor_df(
     if not path.exists():
         raise FileNotFoundError(f"Home Assistant database not found at {path}")
 
-    con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
-    try:
+    if entity_ids is not None and len(entity_ids) == 0:
+        return pd.DataFrame(columns=["entity_id", "state"]).set_index(
+            pd.DatetimeIndex([], tz="UTC", name="timestamp")
+        )
+
+    with closing(sqlite3.connect(f"file:{path}?mode=ro", uri=True)) as con:
         tables = {
             r[0]
             for r in con.execute(
@@ -61,8 +66,6 @@ def load_sensor_df(
             df = _load_modern_schema(con, entity_ids)
         else:
             df = _load_legacy_schema(con, entity_ids)
-    finally:
-        con.close()
 
     return df
 
@@ -71,7 +74,7 @@ def _load_modern_schema(
     con: sqlite3.Connection, entity_ids: list[str] | None
 ) -> pd.DataFrame:
     """Load from HA 2023.x+ schema with states_meta table."""
-    if entity_ids:
+    if entity_ids is not None:
         placeholders = ",".join("?" * len(entity_ids))
         query = f"""
             SELECT
@@ -103,7 +106,7 @@ def _load_legacy_schema(
     con: sqlite3.Connection, entity_ids: list[str] | None
 ) -> pd.DataFrame:
     """Load from legacy HA schema (pre-2023) with entity_id in states table."""
-    if entity_ids:
+    if entity_ids is not None:
         placeholders = ",".join("?" * len(entity_ids))
         query = f"""
             SELECT entity_id, state, last_updated

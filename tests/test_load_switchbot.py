@@ -58,6 +58,7 @@ def test_load_meter_df(meter_csv: Path) -> None:
     assert "humidity_pct" in df.columns
     assert "co2_ppm" not in df.columns  # meter doesn't have CO2
     assert df.index.name == "timestamp"
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert df.index.tz is not None
     assert len(df) == 6
 
@@ -117,6 +118,7 @@ def test_create_fake_environment_df_with_co2() -> None:
     assert "temperature_c" in df.columns
     assert "humidity_pct" in df.columns
     assert "co2_ppm" in df.columns
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert df.index.tz is not None
 
     # Plausible ranges

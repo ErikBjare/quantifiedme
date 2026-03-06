@@ -12,7 +12,7 @@ packages = [
 quantifiedme = "quantifiedme.main:main"
 
 [tool.poetry.dependencies]
-python = ">=3.10"
+python = "^3.10"
 aw-core = "^0.5.16"
 aw-client = "^0.5"
 aw_research = {git = "https://github.com/ActivityWatch/aw-research.git"}

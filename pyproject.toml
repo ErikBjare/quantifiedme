@@ -12,7 +12,7 @@ packages = [
 quantifiedme = "quantifiedme.main:main"
 
 [tool.poetry.dependencies]
-python = "^3.10, <3.12"  # scipy has a <3.12 constraint
+python = ">=3.10"
 aw-core = "^0.5.16"
 aw-client = "^0.5"
 aw_research = {git = "https://github.com/ActivityWatch/aw-research.git"}
@@ -22,18 +22,15 @@ numpy = "*"
 scipy = ">=1.10"
 #bottleneck = "1.2.3"
 pandas = "*"
-pandas-profiling = "*"
 matplotlib = "*"
 calplot = "^0.1"  # fork of calmap
 joblib = "*"
 tabulate = "*"
 pint = "*"
-toml = "*"
+tomli = {version = ">=1.2", python = "<3.11"}
 #togglcli = "*"
 #togglcli = {path = "vendor/toggl-cli"}
 statsmodels = "*"
-types-click = "*"
-types-toml = "*"
 influxdb-client = {version = "*", optional = true}
 nbval = "*"
 gradio = "^4.36.1"
@@ -46,11 +43,8 @@ pytest-cov = "*"
 pytest-xdist = "*"
 pytest-profiling = "*"
 #pytest_notebook = "*"
-flake8 = "*"
 mypy = "*"
-black = "*"
 ipympl = "*"
-pyupgrade = "*"
 ruff = "*"
 pandas-stubs = "^2.1.1.230928"
 

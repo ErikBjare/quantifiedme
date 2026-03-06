@@ -1,10 +1,15 @@
 import logging
+import sys
 from collections.abc import MutableMapping
 from pathlib import Path
 from typing import Any
 
 import platformdirs
-import toml
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +33,9 @@ def load_config(use_example=False) -> MutableMapping[str, Any]:
     else:
         logger.warning("No config found, falling back to example config")
 
-    with open(filepath) as f:
+    with open(filepath, "rb") as f:
         logger.debug("Loading config from %s", filepath)
-        return toml.load(f)
+        return tomllib.load(f)
 
 
 def has_config() -> bool:

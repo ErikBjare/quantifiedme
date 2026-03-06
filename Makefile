@@ -21,12 +21,11 @@ install:
 	poetry install
 
 lint:
-	poetry run ruff $(SRCDIRS)
+	poetry run ruff check $(SRCDIRS)
 
 fmt:
-	poetry run ruff --fix $(SRCDIRS)
-	poetry run pyupgrade --py310-plus $(SRCFILES) --exit-zero-even-if-changed
-	poetry run black $(SRCDIRS)
+	poetry run ruff check --fix $(SRCDIRS)
+	poetry run ruff format $(SRCDIRS)
 
 test:
 	poetry run python3 -m pytest -v tests/ --durations=5 $(if $(NOCAPTURE),--capture=no) \

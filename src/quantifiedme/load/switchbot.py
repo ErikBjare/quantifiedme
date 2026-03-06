@@ -55,7 +55,8 @@ def load_environment_df(
     else:
         path = Path(path).expanduser()
 
-    assert path.exists(), f"SwitchBot export not found at {path}"
+    if not path.exists():
+        raise FileNotFoundError(f"SwitchBot export not found at {path}")
 
     df = pd.read_csv(path)
     df.columns = [c.strip() for c in df.columns]

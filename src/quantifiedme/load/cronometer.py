@@ -40,7 +40,8 @@ def load_nutrition_df(path: Path | None = None) -> pd.DataFrame:
     else:
         path = Path(path).expanduser()
 
-    assert path.exists(), f"Cronometer export not found at {path}"
+    if not path.exists():
+        raise FileNotFoundError(f"Cronometer export not found at {path}")
 
     df = pd.read_csv(path, parse_dates=["Date"])
     df = df.rename(columns={"Date": "date"})
@@ -53,13 +54,6 @@ def load_nutrition_df(path: Path | None = None) -> pd.DataFrame:
         normalized = col.lower()
         normalized = normalized.replace(" ", "_")
         normalized = normalized.replace("(", "").replace(")", "")
-        normalized = normalized.replace("energy_kcal", "energy_kcal")
-        normalized = normalized.replace("protein_g", "protein_g")
-        normalized = normalized.replace("carbs_g", "carbs_g")
-        normalized = normalized.replace("net_carbs_g", "net_carbs_g")
-        normalized = normalized.replace("fat_g", "fat_g")
-        normalized = normalized.replace("fiber_g", "fiber_g")
-        normalized = normalized.replace("sugar_g", "sugar_g")
         col_map[col] = normalized
 
     df = df.rename(columns=col_map)
@@ -87,7 +81,8 @@ def load_servings_df(path: Path | None = None) -> pd.DataFrame:
     else:
         path = Path(path).expanduser()
 
-    assert path.exists(), f"Cronometer servings export not found at {path}"
+    if not path.exists():
+        raise FileNotFoundError(f"Cronometer servings export not found at {path}")
 
     df = pd.read_csv(path, parse_dates=["Day"])
     df = df.rename(columns={"Day": "date"})

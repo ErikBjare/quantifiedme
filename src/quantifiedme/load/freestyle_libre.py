@@ -80,7 +80,7 @@ def load_glucose_df(
     df = pd.read_csv(path, skiprows=header_line, low_memory=False, index_col=False)
 
     # Normalize column names
-    df.columns = [c.strip() for c in df.columns]
+    df.columns = pd.Index([c.strip() for c in df.columns])
 
     # Parse timestamps
     df["timestamp"] = pd.to_datetime(df["Device Timestamp"], dayfirst=True, utc=True)
@@ -146,8 +146,9 @@ def load_glucose_daily_df(path: Path | None = None) -> pd.DataFrame:
     - n_readings: number of readings that day
     """
     df = load_glucose_df(path=path)
+    idx = pd.DatetimeIndex(df.index)
 
-    daily = df.groupby(df.index.date).agg(
+    daily = df.groupby(idx.date).agg(
         glucose_mean=("glucose", "mean"),
         glucose_min=("glucose", "min"),
         glucose_max=("glucose", "max"),
@@ -156,7 +157,8 @@ def load_glucose_daily_df(path: Path | None = None) -> pd.DataFrame:
     )
     # Time in range (3.9–10.0 mmol/L)
     in_range = df[(df["glucose"] >= 3.9) & (df["glucose"] <= 10.0)]
-    tir = in_range.groupby(in_range.index.date).size() / df.groupby(df.index.date).size()
+    in_range_idx = pd.DatetimeIndex(in_range.index)
+    tir = in_range.groupby(in_range_idx.date).size() / df.groupby(idx.date).size()
     daily["time_in_range"] = tir
 
     daily.index = pd.to_datetime(daily.index, utc=True)

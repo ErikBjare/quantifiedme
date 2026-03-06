@@ -76,9 +76,23 @@ def test_load_sensor_df_modern(modern_db: Path) -> None:
     assert str(df.index.tz) == "UTC"
     assert "entity_id" in df.columns
     assert "state" in df.columns
+    assert "unit" in df.columns
     # 'unavailable' row should be dropped: 4 rows - 1 = 3
     assert len(df) == 3
     assert df["state"].notna().all()
+    # Without units mapping, unit column should be None/NaN
+    assert df["unit"].isna().all()
+
+
+def test_load_sensor_df_with_units(modern_db: Path) -> None:
+    units = {"sensor.temperature_bedroom": "°C", "sensor.co2_office": "ppm"}
+    df = load_sensor_df(path=modern_db, units=units)
+
+    assert "unit" in df.columns
+    temp_rows = df[df["entity_id"] == "sensor.temperature_bedroom"]
+    co2_rows = df[df["entity_id"] == "sensor.co2_office"]
+    assert (temp_rows["unit"] == "°C").all()
+    assert (co2_rows["unit"] == "ppm").all()
 
 
 def test_load_sensor_df_modern_filter_entity(modern_db: Path) -> None:
@@ -120,6 +134,7 @@ def test_load_sensor_df_empty_entity_ids(modern_db: Path) -> None:
     assert len(df) == 0
     assert "entity_id" in df.columns
     assert "state" in df.columns
+    assert "unit" in df.columns
     assert isinstance(df.index, pd.DatetimeIndex)
     assert str(df.index.tz) == "UTC"
 
@@ -138,5 +153,7 @@ def test_create_fake_sensor_df() -> None:
     assert str(df.index.tz) == "UTC"
     assert "entity_id" in df.columns
     assert "state" in df.columns
+    assert "unit" in df.columns
     assert len(df) > 0
     assert df["state"].notna().all()
+    assert df["unit"].notna().all()

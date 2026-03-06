@@ -23,6 +23,7 @@ from ..config import load_config
 def load_sensor_df(
     path: Path | None = None,
     entity_ids: list[str] | None = None,
+    units: dict[str, str] | None = None,
 ) -> pd.DataFrame:
     """
     Load environmental sensor data from Home Assistant's SQLite database.
@@ -33,11 +34,15 @@ def load_sensor_df(
         entity_ids: Optional list of entity IDs to filter (e.g.,
                     ["sensor.temperature_bedroom", "sensor.co2_office"]).
                     If None, all numeric sensor states are returned.
+        units: Optional mapping from entity_id to unit string (e.g.,
+               {"sensor.temperature_bedroom": "°C", "sensor.co2_office": "ppm"}).
+               If provided, a ``unit`` column is populated; unknown entities get NaN.
 
     Returns:
         DataFrame indexed by UTC timestamp with columns:
         - entity_id: HA entity ID
         - state: numeric sensor value
+        - unit: unit of measurement (NaN when units mapping not provided or entity unknown)
 
     Non-numeric states (e.g., 'unavailable', 'unknown') are dropped.
     """
@@ -51,7 +56,7 @@ def load_sensor_df(
         raise FileNotFoundError(f"Home Assistant database not found at {path}")
 
     if entity_ids is not None and len(entity_ids) == 0:
-        return pd.DataFrame(columns=["entity_id", "state"]).set_index(
+        return pd.DataFrame(columns=["entity_id", "state", "unit"]).set_index(
             pd.DatetimeIndex([], tz="UTC", name="timestamp")
         )
 
@@ -67,6 +72,7 @@ def load_sensor_df(
         else:
             df = _load_legacy_schema(con, entity_ids)
 
+    df["unit"] = df["entity_id"].map(units) if units is not None else None
     return df
 
 
@@ -167,9 +173,9 @@ def create_fake_sensor_df(
     for i, ts in enumerate(dates):
         rows.extend(
             [
-                {"timestamp": ts, "entity_id": "sensor.temperature_bedroom", "state": temp[i]},
-                {"timestamp": ts, "entity_id": "sensor.humidity_bedroom", "state": humidity[i]},
-                {"timestamp": ts, "entity_id": "sensor.co2_office", "state": co2[i]},
+                {"timestamp": ts, "entity_id": "sensor.temperature_bedroom", "state": temp[i], "unit": "°C"},
+                {"timestamp": ts, "entity_id": "sensor.humidity_bedroom", "state": humidity[i], "unit": "%"},
+                {"timestamp": ts, "entity_id": "sensor.co2_office", "state": co2[i], "unit": "ppm"},
             ]
         )
 

@@ -47,6 +47,7 @@ def test_load_nutrition_df(sample_csv: Path) -> None:
     assert isinstance(df, pd.DataFrame)
     assert len(df) == 3
     assert df.index.name == "timestamp"
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert str(df.index.tz) == "UTC"
     # Check key columns are present (normalized names)
     assert "energy_kcal" in df.columns
@@ -71,6 +72,7 @@ def test_load_servings_df(sample_servings_csv: Path) -> None:
     assert isinstance(df, pd.DataFrame)
     assert len(df) == 3
     assert df.index.name == "timestamp"
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert str(df.index.tz) == "UTC"
     assert "Food Name" in df.columns
     assert "Energy (kcal)" in df.columns
@@ -87,6 +89,7 @@ def test_create_fake_nutrition_df() -> None:
     assert isinstance(df, pd.DataFrame)
     assert len(df) == 91  # Jan + Feb + Mar days
     assert df.index.name == "timestamp"
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert str(df.index.tz) == "UTC"
 
     # Values in plausible ranges

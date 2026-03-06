@@ -30,6 +30,7 @@ def test_load_nutrition_df(sample_csv: Path) -> None:
     assert isinstance(df, pd.DataFrame)
     assert len(df) == 3
     assert df.index.name == "timestamp"
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert df.index.tz is not None  # timezone-aware
     # Check key columns are present (normalized names)
     assert "energy_kcal" in df.columns
@@ -49,6 +50,7 @@ def test_create_fake_nutrition_df() -> None:
     assert isinstance(df, pd.DataFrame)
     assert len(df) == 91  # Jan + Feb + Mar days
     assert df.index.name == "timestamp"
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert df.index.tz is not None
 
     # Values in plausible ranges

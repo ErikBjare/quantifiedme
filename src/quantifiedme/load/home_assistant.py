@@ -189,7 +189,7 @@ def load_sensor_df_api(
         requests.HTTPError: on non-2xx responses from HA.
     """
     try:
-        import requests
+        import requests  # type: ignore[import-untyped]
     except ImportError as e:
         raise ImportError("requests is required for REST API access: pip install requests") from e
 

@@ -235,6 +235,7 @@ def test_load_sensor_df_api_empty_entity_ids() -> None:
     assert isinstance(df, pd.DataFrame)
     assert len(df) == 0
     assert "entity_id" in df.columns
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert str(df.index.tz) == "UTC"
 
 
@@ -243,11 +244,12 @@ def test_load_sensor_df_api_empty_response() -> None:
         df = load_sensor_df_api(url="http://homeassistant.local:8123", token="test-token")
 
     assert len(df) == 0
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert str(df.index.tz) == "UTC"
 
 
 def test_load_sensor_df_api_http_error() -> None:
-    import requests
+    import requests  # type: ignore[import-untyped]
 
     mock_response = MagicMock()
     mock_response.raise_for_status.side_effect = requests.HTTPError("401 Unauthorized")

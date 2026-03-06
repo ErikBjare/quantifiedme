@@ -12,6 +12,14 @@ categories = "./categories.example.toml"
 #habitbull = "~/Downloads/HabitBullData.csv"
 #location = "~/location"
 #oura = "~/Downloads/oura_2020-02-27T09-07-47.json"
+#cronometer = "~/Downloads/dailysummary.csv"        # Cronometer daily nutrition export
+#cronometer_servings = "~/Downloads/servings.csv"   # Optional: Cronometer per-food-item log
+#freestyle_libre = "~/Downloads/glucosedata.csv"    # Abbott FreeStyle Libre CGM export (via LibreView)
+#switchbot = "~/Downloads/switchbot_bedroom.csv"    # SwitchBot Meter/CO2 sensor export (single device)
+
+#[data.switchbot_devices]                           # SwitchBot: multiple devices by name
+#bedroom = "~/Downloads/switchbot_bedroom.csv"
+#office = "~/Downloads/switchbot_office.csv"
 
 [data.activitywatch]
 port = 5666

@@ -1,5 +1,9 @@
 """
-Loads environmental sensor data from Home Assistant's SQLite database.
+Loads environmental sensor data from Home Assistant.
+
+Two access modes:
+- **SQLite** (local): reads the HA SQLite database directly (``load_sensor_df``)
+- **REST API** (remote): queries the HA history API over HTTP (``load_sensor_df_api``)
 
 Home Assistant stores all sensor history in a local SQLite database at:
   ~/.homeassistant/home-assistant_v2.db
@@ -13,6 +17,7 @@ through Home Assistant — current and future sensors automatically included.
 
 import sqlite3
 from contextlib import closing
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -143,6 +148,96 @@ def _clean_df(df: pd.DataFrame) -> pd.DataFrame:
 
     df = df.sort_index()
     df.index.name = "timestamp"
+    return df
+
+
+def load_sensor_df_api(
+    url: str,
+    token: str,
+    entity_ids: list[str] | None = None,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    units: dict[str, str] | None = None,
+) -> pd.DataFrame:
+    """
+    Load environmental sensor data from Home Assistant's REST API.
+
+    Uses the ``/api/history/period`` endpoint, which is available on any
+    networked HA instance and does not require local database access.
+
+    Args:
+        url: Base URL of the Home Assistant instance, e.g.
+             ``"http://homeassistant.local:8123"``.
+        token: Long-lived access token (Settings → Profile → Long-lived access tokens).
+        entity_ids: Optional list of entity IDs to fetch. If None, HA returns
+                    history for all entities (can be very large).
+        start: Start of the history window (UTC). Defaults to 24 hours ago.
+        end: End of the history window (UTC). Defaults to now.
+        units: Optional mapping from entity_id to unit string. If provided,
+               a ``unit`` column is populated; unknown entities get NaN.
+
+    Returns:
+        DataFrame indexed by UTC timestamp with columns:
+        - entity_id: HA entity ID
+        - state: numeric sensor value
+        - unit: unit of measurement (NaN when units mapping not provided or entity unknown)
+
+    Non-numeric states (e.g., 'unavailable', 'unknown') are dropped.
+
+    Raises:
+        ImportError: if the ``requests`` package is not installed.
+        requests.HTTPError: on non-2xx responses from HA.
+    """
+    try:
+        import requests
+    except ImportError as e:
+        raise ImportError("requests is required for REST API access: pip install requests") from e
+
+    if start is None:
+        start = datetime.now(tz=timezone.utc) - timedelta(days=1)
+    if end is None:
+        end = datetime.now(tz=timezone.utc)
+
+    start_str = start.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+    end_str = end.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
+    api_url = f"{url.rstrip('/')}/api/history/period/{start_str}"
+    params: dict[str, str] = {
+        "end_time": end_str,
+        "minimal_response": "true",
+        "significant_changes_only": "false",
+    }
+    if entity_ids is not None:
+        if len(entity_ids) == 0:
+            return pd.DataFrame(columns=["entity_id", "state", "unit"]).set_index(
+                pd.DatetimeIndex([], tz="UTC", name="timestamp")
+            )
+        params["filter_entity_id"] = ",".join(entity_ids)
+
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(api_url, params=params, headers=headers, timeout=30)
+    response.raise_for_status()
+
+    # Response is a list of lists (one per entity) of state objects
+    data = response.json()
+    rows = []
+    for entity_history in data:
+        for state_obj in entity_history:
+            rows.append(
+                {
+                    "entity_id": state_obj["entity_id"],
+                    "state": state_obj["state"],
+                    "last_updated": state_obj["last_updated"],
+                }
+            )
+
+    if not rows:
+        return pd.DataFrame(columns=["entity_id", "state", "unit"]).set_index(
+            pd.DatetimeIndex([], tz="UTC", name="timestamp")
+        )
+
+    df = _clean_df(pd.DataFrame(rows))
+    df["unit"] = df["entity_id"].map(units) if units is not None else None
     return df
 
 

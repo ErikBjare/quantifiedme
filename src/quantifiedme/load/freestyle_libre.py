@@ -53,7 +53,12 @@ def load_glucose_df(
     else:
         path = Path(path).expanduser()
 
-    assert path.exists(), f"FreeStyle Libre export not found at {path}"
+    if not path.exists():
+        raise FileNotFoundError(f"FreeStyle Libre export not found at {path}")
+
+    valid_units = {"mmol/L", "mg/dL"}
+    if unit not in valid_units:
+        raise ValueError(f"Invalid unit {unit!r}. Must be one of: {valid_units}")
 
     # Skip the metadata header rows — find the line with the column headers
     with open(path, encoding="utf-8-sig") as f:

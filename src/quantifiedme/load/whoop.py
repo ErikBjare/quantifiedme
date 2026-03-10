@@ -61,7 +61,9 @@ def load_sleep_df() -> pd.DataFrame:
 
     # set index and sort
     offset = timedelta(hours=8)
-    df = df.set_index(pd.to_datetime(pd.DatetimeIndex(df["start"] - offset).date, utc=True))  # type: ignore
+    df = df.set_index(
+        pd.to_datetime(pd.DatetimeIndex(df["start"] - offset).date, utc=True)
+    )  # type: ignore
     df = df.sort_index()
 
     # rename index to timestamp

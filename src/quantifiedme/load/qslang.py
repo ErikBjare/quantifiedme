@@ -4,7 +4,6 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 import pint
-
 from qslang import Event
 from qslang.dose import ureg
 from qslang.main import load_events
@@ -44,7 +43,7 @@ class DuplicateFilter:
 def load_df(events: list[Event] | None = None) -> pd.DataFrame:
     if events is None:
         events = load_events()
-    events = [e for e in events]
+    events = list(events)
 
     with DuplicateFilter(logger):
         for e in events:
@@ -86,7 +85,7 @@ def load_df(events: list[Event] | None = None) -> pd.DataFrame:
                 "substance": e.data.get("substance"),
                 "dose": e.data.get("amount_pint") or 0,
                 # FIXME: Only supports one tag
-                "tag": list(sorted(e.data.get("tags") or {"none"}))[0],
+                "tag": sorted(e.data.get("tags") or {"none"})[0],
                 "data": e.data,
             }
             for e in events
@@ -113,7 +112,7 @@ def to_series(
     """
     assert tag or substance
     key = "tag" if tag else "substance"
-    val = tag if tag else substance
+    val = tag or substance
 
     # Filter for the tag/substance we want
     df = df[df[key] == val]
@@ -152,9 +151,9 @@ def load_daily_df(events: list[Event] | None = None) -> pd.DataFrame:
 
     substances = {s for s in df_src["substance"] if s}
     series_subst = {
-        subst.lower()
-        .replace("-", "")
-        .replace(" ", ""): to_series(df_src, substance=subst)
+        subst.lower().replace("-", "").replace(" ", ""): to_series(
+            df_src, substance=subst
+        )
         for subst in substances
     }
     df = pd.concat([df, pd.DataFrame(series_tags), pd.DataFrame(series_subst)], axis=1)

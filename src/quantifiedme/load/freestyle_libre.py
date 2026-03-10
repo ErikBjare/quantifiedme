@@ -26,7 +26,7 @@ _HEADER_COL = "Device Timestamp"
 
 # Record type IDs in the Abbott export
 _RECORD_HISTORIC = 0  # automatic 15-min reading
-_RECORD_SCAN = 1      # manual scan
+_RECORD_SCAN = 1  # manual scan
 
 
 def load_glucose_df(
@@ -94,13 +94,21 @@ def load_glucose_df(
 
     if glucose_col_mmol:
         # EU export — values already in mmol/L
-        historic_col = next((c for c in df.columns if "Historic Glucose" in c and "mmol" in c), None)
-        scan_col = next((c for c in df.columns if "Scan Glucose" in c and "mmol" in c), None)
+        historic_col = next(
+            (c for c in df.columns if "Historic Glucose" in c and "mmol" in c), None
+        )
+        scan_col = next(
+            (c for c in df.columns if "Scan Glucose" in c and "mmol" in c), None
+        )
         factor = 1.0
     elif glucose_col_mgdl:
         # US export — convert mg/dL to mmol/L
-        historic_col = next((c for c in df.columns if "Historic Glucose" in c and "mg" in c), None)
-        scan_col = next((c for c in df.columns if "Scan Glucose" in c and "mg" in c), None)
+        historic_col = next(
+            (c for c in df.columns if "Historic Glucose" in c and "mg" in c), None
+        )
+        scan_col = next(
+            (c for c in df.columns if "Scan Glucose" in c and "mg" in c), None
+        )
         factor = 1 / 18.018
     else:
         raise ValueError(
@@ -181,7 +189,9 @@ def create_fake_glucose_df(
     import numpy as np
 
     rng = np.random.default_rng(seed)
-    timestamps = pd.date_range(start=start, end=end, freq=f"{interval_minutes}min", tz="UTC")
+    timestamps = pd.date_range(
+        start=start, end=end, freq=f"{interval_minutes}min", tz="UTC"
+    )
     n = len(timestamps)
 
     # Baseline ~5.5 mmol/L with diurnal variation and random walk noise

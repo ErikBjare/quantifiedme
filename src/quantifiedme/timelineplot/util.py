@@ -1,5 +1,5 @@
+from collections.abc import Generator, Iterable
 from typing import TypeVar
-from collections.abc import Iterable, Generator
 
 T = TypeVar("T")
 
@@ -28,4 +28,4 @@ def take_until_next(
 
 def test_take_until_next():
     ls = [1, 1, 1, 2, 3, 3]
-    assert [((0, 2), 1), ((3, 3), 2), ((4, 5), 3)] == list(take_until_next(ls))
+    assert list(take_until_next(ls)) == [((0, 2), 1), ((3, 3), 2), ((4, 5), 3)]

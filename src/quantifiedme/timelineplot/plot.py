@@ -1,15 +1,15 @@
 import sys
-from typing import TypeVar, Union
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import TypeVar
 
 import matplotlib.pyplot as plt
 
 from .util import take_until_next
 
 T = TypeVar("T")
-Color = Union[str | tuple[float, float, float]]
+Color = str | tuple[float, float, float]
 Index = TypeVar("Index", int, datetime)
 Limits = tuple[Index, Index]
 Event = tuple[Limits, Color, str]
@@ -45,12 +45,10 @@ class TimelineFigure:
 
         # Check that type assumption is true
         assert all(
-            [
-                isinstance(event[0][0], type(index_example))
-                and isinstance(event[0][1], type(index_example))
-                for bar in self.bars
-                for event in bar.events
-            ]
+            isinstance(event[0][0], type(index_example))
+            and isinstance(event[0][1], type(index_example))
+            for bar in self.bars
+            for event in bar.events
         )
 
         for bar_idx, bar in enumerate(self.bars):

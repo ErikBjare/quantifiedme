@@ -77,7 +77,9 @@ def load_servings_df(path: Path | None = None) -> pd.DataFrame:
     """
     if path is None:
         config = load_config()
-        path = Path(config["data"].get("cronometer_servings", config["data"]["cronometer"])).expanduser()
+        path = Path(
+            config["data"].get("cronometer_servings", config["data"]["cronometer"])
+        ).expanduser()
     else:
         path = Path(path).expanduser()
 

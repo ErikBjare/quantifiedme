@@ -35,10 +35,12 @@ def _merge_several_sleep_records_per_day(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def load_sleep_df(ignore: list[str] = [], aggregate=True) -> pd.DataFrame:
+def load_sleep_df(ignore: list[str] | None = None, aggregate=True) -> pd.DataFrame:
     """
     Loads sleep data from Fitbit, Oura, and Whoop into a single dataframe.
     """
+    if ignore is None:
+        ignore = []
     df: pd.DataFrame = pd.DataFrame()
 
     # Fitbit
@@ -78,8 +80,7 @@ def load_sleep_df(ignore: list[str] = [], aggregate=True) -> pd.DataFrame:
 def join(df_target, df_source, **kwargs) -> pd.DataFrame:
     if df_target.empty:
         return df_source
-    else:
-        return df_target.join(df_source, how="outer", **kwargs)
+    return df_target.join(df_source, how="outer", **kwargs)
 
 
 @click.command()

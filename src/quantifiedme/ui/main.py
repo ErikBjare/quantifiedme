@@ -4,6 +4,7 @@ from functools import cache
 import calplot
 import gradio as gr
 import pandas as pd
+
 from quantifiedme.derived.all_df import load_all_df
 from quantifiedme.derived.sleep import load_sleep_df
 from quantifiedme.load.qslang import load_daily_df as load_qslang_daily_df

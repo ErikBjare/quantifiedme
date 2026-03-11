@@ -27,12 +27,14 @@ Sources = Literal["screentime", "heartrate", "drugs", "location", "sleep"]
 def load_all_df(
     fast=True,
     screentime_events: list[Event] | None = None,
-    ignore: list[Sources] = [],
+    ignore: list[Sources] | None = None,
 ) -> pd.DataFrame:
     """
     Loads a bunch of data into a single dataframe with one row per day.
     Serves as a useful starting point for further analysis.
     """
+    if ignore is None:
+        ignore = []
     df = pd.DataFrame()
     since = datetime.now(tz=timezone.utc) - timedelta(days=30 if fast else 2 * 365)
     print(f"Loading data since {since}")
@@ -82,7 +84,7 @@ def load_all_df(
     # look for all-na columns, emit a warning, and drop them
     na_cols = df.columns[df.isna().all()]
     if len(na_cols) > 0:
-        logger.warning(f"Warning: dropping all-NA columns: {str(list(na_cols))}")
+        logger.warning(f"Warning: dropping all-NA columns: {list(na_cols)!s}")
         df = df.drop(columns=na_cols)
 
     df.index.name = "date"
@@ -93,7 +95,7 @@ def join(df_target: pd.DataFrame, df_source: pd.DataFrame) -> pd.DataFrame:
     if not df_target.empty:
         check_new_data_in_range(df_source, df_target)
     print(
-        f"Adding new columns: {str(list(df_source.columns.difference(df_target.columns)))}"
+        f"Adding new columns: {list(df_source.columns.difference(df_target.columns))!s}"
     )
     return df_target.join(df_source) if not df_target.empty else df_source
 
@@ -102,12 +104,11 @@ DateLike: TypeAlias = datetime | date | pd.Timestamp
 
 
 def datelike_to_date(d: DateLike) -> date:
-    if isinstance(d, datetime) or isinstance(d, pd.Timestamp):
+    if isinstance(d, (datetime, pd.Timestamp)):
         return d.date()
-    elif isinstance(d, date):
+    if isinstance(d, date):
         return d
-    else:
-        raise ValueError(f"Invalid type for datelike: {type(d)}")
+    raise ValueError(f"Invalid type for datelike: {type(d)}")
 
 
 def check_new_data_in_range(df_source: pd.DataFrame, df_target: pd.DataFrame) -> None:

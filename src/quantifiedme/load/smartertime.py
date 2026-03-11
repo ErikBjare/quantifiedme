@@ -18,7 +18,7 @@ def load_events(since: datetime) -> list[Event]:
     # TODO: allow loading directly from export, so we don't need to manually convert to aw-bucket json
     events_smartertime: list[Event] = []
     # TODO: underspecified hostname priority
-    for hostname, events in _load_smartertime_devices(since).items():
+    for events in _load_smartertime_devices(since).values():
         events_smartertime = union_no_overlap(events_smartertime, events)
     return events_smartertime
 
@@ -119,10 +119,9 @@ def import_to_awserver(bucket):
 def default(o):
     if hasattr(o, "isoformat"):
         return o.isoformat()
-    elif hasattr(o, "total_seconds"):
+    if hasattr(o, "total_seconds"):
         return o.total_seconds()
-    else:
-        raise NotImplementedError
+    raise NotImplementedError
 
 
 def convert_csv_to_awbucket(filepath):
@@ -132,8 +131,8 @@ def convert_csv_to_awbucket(filepath):
 
 
 if __name__ == "__main__":
-    assert len(sys.argv) > 2 and sys.argv[1] in [
-        "convert"
-    ], "Usage: smartertime.py convert <filename>"
+    assert len(sys.argv) > 2 and sys.argv[1] == "convert", (
+        "Usage: smartertime.py convert <filename>"
+    )
     filename = sys.argv.pop()
     convert_csv_to_awbucket(filename)

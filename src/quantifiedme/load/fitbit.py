@@ -19,9 +19,7 @@ def load_sleep_df() -> pd.DataFrame:
     files = filepath.glob("Global Export Data/sleep-*.json")
 
     # load each file into a dataframe
-    dfs = []
-    for f in sorted(files):
-        dfs.append(_load_sleep_file(f))
+    dfs = [_load_sleep_file(f) for f in sorted(files)]
 
     # combine all the dataframes into a single dataframe
     df = pd.concat(dfs)

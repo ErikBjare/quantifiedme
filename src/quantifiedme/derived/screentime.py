@@ -114,12 +114,12 @@ def load_screentime(
     # Verify that no events are older than `since`
     print(f"Query start: {since}")
     print(f"Events start: {events[0].timestamp}")
-    assert all([since <= e.timestamp for e in events])
+    assert all(since <= e.timestamp for e in events)
 
     # Verify that no events take place in the future
     # FIXME: Doesn't work with fake data, atm
     if "fake" not in datasources:
-        assert all([e.timestamp + e.duration <= now for e in events])
+        assert all(e.timestamp + e.duration <= now for e in events)
 
     # Verify that no events overlap
     verify_no_overlap(events)
@@ -149,11 +149,10 @@ def load_screentime_cached(
         if since:
             events = [e for e in events if e.timestamp >= since]
         return events
-    else:
-        events = load_screentime(since=since, **kwargs)
-        with open(path, "wb") as f:
-            pickle.dump(events, f)
-        return events
+    events = load_screentime(since=since, **kwargs)
+    with open(path, "wb") as f:
+        pickle.dump(events, f)
+    return events
 
 
 def _join_events(

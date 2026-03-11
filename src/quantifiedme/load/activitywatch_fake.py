@@ -3,7 +3,6 @@ from collections.abc import Iterable
 from datetime import datetime, timedelta
 
 import numpy as np
-
 from aw_core import Event
 
 fakedata_weights = [

@@ -30,7 +30,7 @@ bands_ordered = ["delta", "theta", "alpha", "beta", "gamma"]
 def load_data():
     filesets = load_fileset()
     df = pd.DataFrame()
-    for timestamp, files in filesets.items():
+    for files in filesets.values():
         result = load_session(files)
         # pprint(result)
         df = pd.concat([df, pd.DataFrame(result)], ignore_index=True)
@@ -57,7 +57,7 @@ def load_session(files: dict) -> dict:
 
     # we have to deal with the channels, such as CP3_alpha, CP3_beta, etc.
     # for now, we will just average them all together
-    channels, bands = zip(*[c.split("_") for c in df_pbb.columns])
+    channels, bands = zip(*[c.split("_") for c in df_pbb.columns], strict=False)
     channels, bands = tuple(set(channels)), tuple(set(bands))
 
     df = pd.DataFrame(index=df_pbb.index)

@@ -191,7 +191,9 @@ def load_sensor_df_api(
     try:
         import requests  # type: ignore[import-untyped]
     except ImportError as e:
-        raise ImportError("requests is required for REST API access: pip install requests") from e
+        raise ImportError(
+            "requests is required for REST API access: pip install requests"
+        ) from e
 
     if start is None:
         start = datetime.now(tz=timezone.utc) - timedelta(days=1)
@@ -220,16 +222,15 @@ def load_sensor_df_api(
 
     # Response is a list of lists (one per entity) of state objects
     data = response.json()
-    rows = []
-    for entity_history in data:
-        for state_obj in entity_history:
-            rows.append(
-                {
-                    "entity_id": state_obj["entity_id"],
-                    "state": state_obj["state"],
-                    "last_updated": state_obj["last_updated"],
-                }
-            )
+    rows = [
+        {
+            "entity_id": state_obj["entity_id"],
+            "state": state_obj["state"],
+            "last_updated": state_obj["last_updated"],
+        }
+        for entity_history in data
+        for state_obj in entity_history
+    ]
 
     if not rows:
         return pd.DataFrame(columns=["entity_id", "state", "unit"]).set_index(
@@ -268,9 +269,24 @@ def create_fake_sensor_df(
     for i, ts in enumerate(dates):
         rows.extend(
             [
-                {"timestamp": ts, "entity_id": "sensor.temperature_bedroom", "state": temp[i], "unit": "°C"},
-                {"timestamp": ts, "entity_id": "sensor.humidity_bedroom", "state": humidity[i], "unit": "%"},
-                {"timestamp": ts, "entity_id": "sensor.co2_office", "state": co2[i], "unit": "ppm"},
+                {
+                    "timestamp": ts,
+                    "entity_id": "sensor.temperature_bedroom",
+                    "state": temp[i],
+                    "unit": "°C",
+                },
+                {
+                    "timestamp": ts,
+                    "entity_id": "sensor.humidity_bedroom",
+                    "state": humidity[i],
+                    "unit": "%",
+                },
+                {
+                    "timestamp": ts,
+                    "entity_id": "sensor.co2_office",
+                    "state": co2[i],
+                    "unit": "ppm",
+                },
             ]
         )
 

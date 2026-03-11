@@ -39,11 +39,13 @@ def load_heartrate_minutes_df():
 
 
 def load_heartrate_summary_df(
-    zones={"resting": 0, "low": 100, "med": 140, "high": 160}, freq="D"
+    zones: dict[str, int] | None = None, freq="D"
 ) -> pd.DataFrame:
     """
     Load heartrates, group into freq, bin by zone, and return a dataframe.
     """
+    if zones is None:
+        zones = {"resting": 0, "low": 100, "med": 140, "high": 160}
     source_df = load_heartrate_minutes_df()
     df = pd.DataFrame()
     df["hr_mean"] = source_df["hr"].groupby(pd.Grouper(freq=freq)).mean()
@@ -52,7 +54,7 @@ def load_heartrate_summary_df(
     df_zones = pd.cut(
         source_df["hr"], bins=[*zones.values(), 300], labels=[*zones.keys()]
     )
-    for zone in zones.keys():
+    for zone in zones:
         df[f"hr_duration_{zone}"] = df_zones[df_zones == zone].groupby(
             pd.Grouper(freq=freq)
         ).count() * pd.Timedelta(minutes=1)

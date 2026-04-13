@@ -55,17 +55,19 @@ def decay_kernel(
     Returns:
         Series of same length with decay-weighted values.
     """
+    if tau <= 0:
+        raise ValueError(f"tau must be positive, got {tau}")
+
     weights = np.exp(-np.arange(window) / tau)
-    # Use rolling apply with the weights
-    result = pd.Series(0.0, index=series.index, dtype=float)
     values = series.fillna(0).values.astype(float)
 
-    for i in range(len(values)):
-        lookback = min(i + 1, window)
-        window_vals = np.asarray(values[i - lookback + 1 : i + 1][::-1])
-        result.iloc[i] = float(np.dot(window_vals, weights[:lookback]))
+    # Vectorized convolution: pad with zeros on the left, convolve with weights
+    padded = np.concatenate([np.zeros(window - 1), values])
+    result_values = np.array(
+        [np.dot(padded[i : i + window][::-1], weights) for i in range(len(values))]
+    )
 
-    return result
+    return pd.Series(result_values, index=series.index, dtype=float)
 
 
 def build_substance_features(

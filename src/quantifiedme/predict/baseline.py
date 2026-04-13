@@ -30,6 +30,7 @@ class BaselineResult:
     feature_importance: pd.Series
     target_col: str
     n_train: int
+    n_val: int
     n_test: int
     target_mean: float
     target_std: float
@@ -39,7 +40,7 @@ class BaselineResult:
         lines = [
             f"Baseline model: {self.target_col}",
             f"  Train: n={self.n_train}, RMSE={self.train_rmse:.3f}, MAE={self.train_mae:.3f}, R²={self.train_r2:.3f}",
-            f"  Test:  n={self.n_test}, RMSE={self.test_rmse:.3f}, MAE={self.test_mae:.3f}, R²={self.test_r2:.3f}",
+            f"  Test:  n={self.n_test} (val={self.n_val}), RMSE={self.test_rmse:.3f}, MAE={self.test_mae:.3f}, R²={self.test_r2:.3f}",
             f"  Target: mean={self.target_mean:.3f}, std={self.target_std:.3f}",
             "  Top 10 features:",
         ]
@@ -90,19 +91,35 @@ def train_baseline(
     import re as _re
 
     clean_names = {c: _re.sub(r"[^a-zA-Z0-9_]", "_", c) for c in X.columns}
+
+    # Check for collisions: distinct original names mapping to same sanitized name
+    reverse: dict[str, str] = {}
+    for orig, clean in clean_names.items():
+        if clean in reverse and reverse[clean] != orig:
+            raise ValueError(
+                f"Feature name collision after sanitization: "
+                f"'{orig}' and '{reverse[clean]}' both map to '{clean}'"
+            )
+        reverse[clean] = orig
+
     X = X.rename(columns=clean_names)
 
-    # Time-based split
-    split_idx = int(len(X) * (1 - test_fraction))
-    X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
-    y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
+    # Time-based 3-way split: train / validation (early stopping) / test (metrics)
+    # This prevents early stopping from biasing test metrics (Greptile P1).
+    val_fraction = test_fraction
+    train_end = int(len(X) * (1 - test_fraction - val_fraction))
+    val_end = int(len(X) * (1 - test_fraction))
+    X_train, X_val, X_test = X.iloc[:train_end], X.iloc[train_end:val_end], X.iloc[val_end:]
+    y_train, y_val, y_test = y.iloc[:train_end], y.iloc[train_end:val_end], y.iloc[val_end:]
 
-    logger.info(f"Training on {len(X_train)} days, testing on {len(X_test)} days")
+    logger.info(
+        f"Split: {len(X_train)} train, {len(X_val)} val, {len(X_test)} test"
+    )
     logger.info(f"Features: {len(X.columns)}")
 
-    # Train LightGBM
+    # Train LightGBM (early stopping on validation set, NOT test set)
     train_data = lgb.Dataset(X_train, label=y_train)
-    valid_data = lgb.Dataset(X_test, label=y_test, reference=train_data)
+    val_data = lgb.Dataset(X_val, label=y_val, reference=train_data)
 
     params = {
         "objective": "regression",
@@ -121,11 +138,11 @@ def train_baseline(
         params,
         train_data,
         num_boost_round=500,
-        valid_sets=[valid_data],
+        valid_sets=[val_data],
         callbacks=[lgb.early_stopping(50), lgb.log_evaluation(0)],
     )
 
-    # Predictions
+    # Predictions on held-out test set (not used during training at all)
     y_pred_train = model.predict(X_train)
     y_pred_test = model.predict(X_test)
 
@@ -160,6 +177,7 @@ def train_baseline(
         feature_importance=importance,
         target_col=target_col,
         n_train=len(X_train),
+        n_val=len(X_val),
         n_test=len(X_test),
         target_mean=float(y.mean()),
         target_std=float(y.std()),

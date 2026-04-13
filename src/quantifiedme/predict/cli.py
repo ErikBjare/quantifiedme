@@ -7,6 +7,9 @@ Usage:
     python -m quantifiedme.predict features data.csv
     python -m quantifiedme.predict bayesian data.csv
     python -m quantifiedme.predict bayesian data.csv --target time:Programming --samples 2000
+    python -m quantifiedme.predict simulate data.csv --add caffeine
+    python -m quantifiedme.predict simulate data.csv --remove alcohol --add nicotine
+    python -m quantifiedme.predict simulate data.csv --add caffeine --target time:Programming
 """
 
 import argparse
@@ -63,6 +66,38 @@ def cmd_bayesian(args: argparse.Namespace) -> None:
     print(f"50% CI coverage: {in_50:.1%} (expected: 50%)")
 
 
+def cmd_simulate(args: argparse.Namespace) -> None:
+    """Run a counterfactual simulation: what if I add/remove a substance?"""
+    from .baseline import load_csv_export
+    from .simulate import format_simulation_report, simulate
+
+    df = load_csv_export(args.csv)
+
+    add_substances = args.add or []
+    remove_substances = args.remove or []
+
+    if not add_substances and not remove_substances:
+        print("Error: specify at least one --add or --remove substance")
+        print("Available substances: caffeine, alcohol, cannabinoids, nicotine, "
+              "psychedelics, stimulants, nootropics, sleepaids, dissociatives, "
+              "empathogens, gabaergics, benzos, depressants")
+        sys.exit(1)
+
+    result = simulate(
+        df,
+        add_substances=add_substances,
+        remove_substances=remove_substances,
+        target_col=args.target,
+        n_samples=args.samples,
+        n_tune=args.tune,
+        max_features=args.max_features,
+    )
+
+    print(format_simulation_report(result))
+    print()
+    print(result["model_result"].summary())
+
+
 def cmd_features(args: argparse.Namespace) -> None:
     """Inspect feature frame: show columns, shapes, and basic stats."""
     from .baseline import load_csv_export
@@ -117,6 +152,17 @@ def main(argv: list[str] | None = None) -> None:
     p_bayes.add_argument("--tune", type=int, default=1000, help="Tuning steps")
     p_bayes.add_argument("--max-features", type=int, default=12, help="Max features to select")
     p_bayes.set_defaults(func=cmd_bayesian)
+
+    # simulate
+    p_sim = sub.add_parser("simulate", help="Counterfactual simulation")
+    p_sim.add_argument("csv", type=Path, help="Path to QS CSV export")
+    p_sim.add_argument("--add", action="append", default=None, help="Substance to add (repeatable)")
+    p_sim.add_argument("--remove", action="append", default=None, help="Substance to remove (repeatable)")
+    p_sim.add_argument("--target", default="time:Work", help="Target column")
+    p_sim.add_argument("--samples", type=int, default=1000, help="Posterior samples per chain")
+    p_sim.add_argument("--tune", type=int, default=1000, help="Tuning steps")
+    p_sim.add_argument("--max-features", type=int, default=12, help="Max features to select")
+    p_sim.set_defaults(func=cmd_simulate)
 
     # features
     p_feat = sub.add_parser("features", help="Inspect feature frame")

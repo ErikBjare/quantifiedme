@@ -25,7 +25,7 @@ def cmd_diagnostic(args: argparse.Namespace) -> None:
     """Run multi-target diagnostic comparison."""
     from .baseline import run_diagnostic
 
-    targets = args.targets.split(",") if args.targets else None
+    targets = [t.strip() for t in args.targets.split(",")] if args.targets else None
     run_diagnostic(args.csv, targets=targets)
 
 

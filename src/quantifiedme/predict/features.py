@@ -11,8 +11,12 @@ simplified multi-day decay: each day's binary flag is treated as a unit
 dose, and the kernel sums contributions from the past `window` days.
 """
 
+import logging
+
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 # Substance half-lives in days (converted from hours for daily resolution).
 # These are pharmacological half-lives; behavioral effects may differ.
@@ -208,6 +212,7 @@ def build_autoregressive_features(
         lags = [1, 2, 3, 7]
 
     if target_col not in df.columns:
+        logger.warning(f"Target column '{target_col}' not found — skipping AR features")
         return pd.DataFrame(index=df.index)
 
     features = pd.DataFrame(index=df.index)

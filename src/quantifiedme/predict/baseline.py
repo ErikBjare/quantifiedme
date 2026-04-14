@@ -245,7 +245,8 @@ def run_diagnostic(
         all_importances: dict[str, float] = {}
         for result in results.values():
             for feat, imp in result.feature_importance.head(10).items():
-                all_importances[feat] = all_importances.get(feat, 0) + imp
+                key = str(feat)
+                all_importances[key] = all_importances.get(key, 0) + imp
 
         sorted_feats = sorted(all_importances.items(), key=lambda x: -x[1])
         for feat, total_imp in sorted_feats[:15]:

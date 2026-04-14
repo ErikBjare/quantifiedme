@@ -226,9 +226,9 @@ def train_bayesian_work(
         ss_tot = np.sum((actual - actual.mean()) ** 2)
         return float(1 - ss_res / ss_tot)
 
-    train_r2 = r2(y_train.values, y_pred_train)
-    test_r2 = r2(y_test.values, y_pred_test)
-    test_rmse = float(np.sqrt(np.mean((y_test.values - y_pred_test) ** 2)))
+    train_r2 = r2(np.asarray(y_train.values), y_pred_train)
+    test_r2 = r2(np.asarray(y_test.values), y_pred_test)
+    test_rmse = float(np.sqrt(np.mean((np.asarray(y_test.values) - y_pred_test) ** 2)))
 
     return BayesianWorkResult(
         trace=trace,
@@ -240,7 +240,7 @@ def train_bayesian_work(
         test_r2=test_r2,
         test_rmse=test_rmse,
         posterior_predictive_test=ppc_orig,
-        y_test=y_test.values,
+        y_test=np.asarray(y_test.values),
         y_test_index=y_test.index,
     )
 

@@ -214,7 +214,7 @@ def simulate(
     # Use last available day as baseline
     last_day = X_sel.iloc[-1]
     last_date = X_sel.index[-1]
-    X_baseline_z = ((last_day - X_mean) / X_std).values
+    X_baseline_z = np.asarray(((last_day - X_mean) / X_std).values)
 
     # Build intervention features
     X_intervention_z = build_intervention_features(

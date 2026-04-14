@@ -236,7 +236,7 @@ def run_diagnostic(
                 f"{result.target_mean:>8.2f} {result.target_std:>8.2f} "
                 f"{result.n_train + result.n_val + result.n_test:>6}"
             )
-        except Exception:
+        except (ValueError, KeyError):
             logger.warning(f"Failed for {target}", exc_info=True)
 
     # Summary: which features appear most across targets

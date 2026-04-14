@@ -263,7 +263,7 @@ def build_feature_frame(
     )
     screentime_features = build_screentime_features(df, lag_days=lag_days, exclude_col=target_col)
     temporal_features = build_temporal_features(df)
-    ar_features = build_autoregressive_features(df, target_col)
+    ar_features = build_autoregressive_features(df, target_col, lags=lag_days)
 
     X = pd.concat([substance_features, screentime_features, temporal_features, ar_features], axis=1)
 

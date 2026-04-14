@@ -125,12 +125,14 @@ def build_substance_features(
 def build_screentime_features(
     df: pd.DataFrame,
     lag_days: list[int] | None = None,
+    exclude_col: str | None = None,
 ) -> pd.DataFrame:
     """Build lag features for screen time categories.
 
     Args:
         df: DataFrame with `time:*` columns (hours).
         lag_days: Which lags to create. Default [1, 2, 3, 7].
+        exclude_col: Column to exclude (avoids duplicating AR features for the target).
 
     Returns:
         DataFrame with lag and rolling features for key categories.
@@ -147,8 +149,9 @@ def build_screentime_features(
         "time:Games",
     ]
 
-    # Filter to categories that exist in the data
-    available = [c for c in key_categories if c in df.columns]
+    # Filter to categories that exist in the data, excluding the target
+    # (AR features handle the target with more comprehensive rolling stats)
+    available = [c for c in key_categories if c in df.columns and c != exclude_col]
     features = pd.DataFrame(index=df.index)
 
     for col in available:
@@ -258,7 +261,7 @@ def build_feature_frame(
         top_n=top_n_substances,
         window=substance_window,
     )
-    screentime_features = build_screentime_features(df, lag_days=lag_days)
+    screentime_features = build_screentime_features(df, lag_days=lag_days, exclude_col=target_col)
     temporal_features = build_temporal_features(df)
     ar_features = build_autoregressive_features(df, target_col)
 

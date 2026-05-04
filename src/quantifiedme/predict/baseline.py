@@ -194,3 +194,62 @@ def run_baseline(
     result = train_baseline(df, target_col=target_col)
     print(result.summary())
     return result
+
+
+def run_diagnostic(
+    csv_path: str | Path,
+    targets: list[str] | None = None,
+) -> dict[str, BaselineResult]:
+    """Run baseline across multiple targets and compare.
+
+    Args:
+        csv_path: Path to CSV export.
+        targets: List of target columns. Default: common screen time categories.
+
+    Returns:
+        Dict mapping target name to BaselineResult.
+    """
+    df = load_csv_export(csv_path)
+
+    if targets is None:
+        # Auto-detect meaningful targets (time:* with enough variance)
+        candidates = [c for c in df.columns if c.startswith("time:")]
+        targets = []
+        for col in candidates:
+            if df[col].std() > 0.1 and df[col].mean() > 0.05:
+                targets.append(col)
+        targets.sort(key=lambda c: -df[c].mean())
+        targets = targets[:8]  # top 8 by mean hours
+
+    results = {}
+    print(f"Running diagnostic across {len(targets)} targets...\n")
+    print(f"{'Target':<25} {'Train R²':>10} {'Test R²':>10} {'Test RMSE':>10} {'Test MAE':>10} {'Mean':>8} {'Std':>8} {'N':>6}")
+    print("-" * 95)
+
+    for target in targets:
+        try:
+            result = train_baseline(df, target_col=target)
+            results[target] = result
+            print(
+                f"{target:<25} {result.train_r2:>10.3f} {result.test_r2:>10.3f} "
+                f"{result.test_rmse:>10.3f} {result.test_mae:>10.3f} "
+                f"{result.target_mean:>8.2f} {result.target_std:>8.2f} "
+                f"{result.n_train + result.n_val + result.n_test:>6}"
+            )
+        except (ValueError, KeyError):
+            logger.warning(f"Failed for {target}", exc_info=True)
+
+    # Summary: which features appear most across targets
+    if results:
+        print("\n--- Cross-Target Feature Importance (top features across all targets) ---")
+        all_importances: dict[str, float] = {}
+        for result in results.values():
+            for feat, imp in result.feature_importance.head(10).items():
+                key = str(feat)
+                all_importances[key] = all_importances.get(key, 0) + imp
+
+        sorted_feats = sorted(all_importances.items(), key=lambda x: -x[1])
+        for feat, total_imp in sorted_feats[:15]:
+            print(f"  {feat}: {total_imp:.0f}")
+
+    return results

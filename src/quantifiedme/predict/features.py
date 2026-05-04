@@ -11,8 +11,12 @@ simplified multi-day decay: each day's binary flag is treated as a unit
 dose, and the kernel sums contributions from the past `window` days.
 """
 
+import logging
+
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 # Substance half-lives in days (converted from hours for daily resolution).
 # These are pharmacological half-lives; behavioral effects may differ.
@@ -121,12 +125,14 @@ def build_substance_features(
 def build_screentime_features(
     df: pd.DataFrame,
     lag_days: list[int] | None = None,
+    exclude_col: str | None = None,
 ) -> pd.DataFrame:
     """Build lag features for screen time categories.
 
     Args:
         df: DataFrame with `time:*` columns (hours).
         lag_days: Which lags to create. Default [1, 2, 3, 7].
+        exclude_col: Column to exclude (avoids duplicating AR features for the target).
 
     Returns:
         DataFrame with lag and rolling features for key categories.
@@ -143,8 +149,9 @@ def build_screentime_features(
         "time:Games",
     ]
 
-    # Filter to categories that exist in the data
-    available = [c for c in key_categories if c in df.columns]
+    # Filter to categories that exist in the data, excluding the target
+    # (AR features handle the target with more comprehensive rolling stats)
+    available = [c for c in key_categories if c in df.columns and c != exclude_col]
     features = pd.DataFrame(index=df.index)
 
     for col in available:
@@ -187,6 +194,44 @@ def build_temporal_features(df: pd.DataFrame) -> pd.DataFrame:
     return features
 
 
+def build_autoregressive_features(
+    df: pd.DataFrame,
+    target_col: str,
+    lags: list[int] | None = None,
+) -> pd.DataFrame:
+    """Build autoregressive features for the target variable.
+
+    The target's own recent history is often the strongest predictor.
+
+    Args:
+        df: DataFrame containing the target column.
+        target_col: Column to build AR features for.
+        lags: Which lags to create. Default [1, 2, 3, 7].
+
+    Returns:
+        DataFrame with lag and rolling features for the target.
+    """
+    if lags is None:
+        lags = [1, 2, 3, 7]
+
+    if target_col not in df.columns:
+        logger.warning(f"Target column '{target_col}' not found — skipping AR features")
+        return pd.DataFrame(index=df.index)
+
+    features = pd.DataFrame(index=df.index)
+    name = target_col.replace(":", "_")
+
+    for lag in lags:
+        features[f"ar:{name}:d-{lag}"] = df[target_col].shift(lag)
+
+    # Rolling statistics
+    features[f"ar:{name}:7d_mean"] = df[target_col].rolling(7, min_periods=1).mean()
+    features[f"ar:{name}:7d_std"] = df[target_col].rolling(7, min_periods=1).std().fillna(0)
+    features[f"ar:{name}:14d_mean"] = df[target_col].rolling(14, min_periods=1).mean()
+
+    return features
+
+
 def build_feature_frame(
     df: pd.DataFrame,
     target_col: str = "time:Work",
@@ -216,10 +261,11 @@ def build_feature_frame(
         top_n=top_n_substances,
         window=substance_window,
     )
-    screentime_features = build_screentime_features(df, lag_days=lag_days)
+    screentime_features = build_screentime_features(df, lag_days=lag_days, exclude_col=target_col)
     temporal_features = build_temporal_features(df)
+    ar_features = build_autoregressive_features(df, target_col, lags=lag_days)
 
-    X = pd.concat([substance_features, screentime_features, temporal_features], axis=1)
+    X = pd.concat([substance_features, screentime_features, temporal_features, ar_features], axis=1)
 
     # Target: next-day value (shift -1 so today's features predict tomorrow)
     y = df[target_col].shift(-1)

@@ -207,6 +207,8 @@ def _load_journal_standard(d: Path) -> pd.DataFrame:
     # "Have any caffeine?", etc.) — Whoop changes the set of questions over time.
     df = pd.read_csv(path)
     df["cycle_start"] = pd.to_datetime(df["Cycle start time"], errors="coerce", utc=True)
+    if "Notes" not in df.columns:
+        df["Notes"] = pd.NA
     df = df.rename(
         columns={
             "Question text": "question",

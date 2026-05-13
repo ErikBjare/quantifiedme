@@ -1,72 +1,424 @@
 """
-Loads Whoop data
+Loads Whoop data.
 
-Requires the full GDPR-compliant export (which includes granular HR data), which is available at: https://privacy.whoop.com/
+Supports two export formats:
+
+- **Standard CSV export** (current Whoop dashboard export): flat directory with
+  ``sleeps.csv``, ``workouts.csv``, ``physiological_cycles.csv``, and
+  ``journal_entries.csv``. Daily-aggregate data. No granular per-minute HR.
+- **GDPR full export** (legacy, from https://privacy.whoop.com/): ``Health/``
+  subdirectory with ``sleeps.csv`` (different schema, with ``during`` JSON
+  tuple), ``metrics*.csv`` granular per-minute HR/accel/skin temp.
+
+Format is auto-detected from directory contents.
 """
 
 from datetime import timedelta
 from pathlib import Path
+from typing import Literal
 
 import pandas as pd
 
 from ..config import load_config
 
+WhoopFormat = Literal["standard", "gdpr"]
 
-def load_heartrate_df() -> pd.DataFrame:
-    whoop_export_dir = load_config()["data"]["whoop"]
+
+def _whoop_dir() -> Path:
+    return Path(load_config()["data"]["whoop"]).expanduser()
+
+
+def _detect_format(d: Path) -> WhoopFormat:
+    """Return 'standard' for new CSV export, 'gdpr' for legacy full-export.
+
+    Detection: ``physiological_cycles.csv`` only exists in the standard export;
+    a ``Health/`` subdirectory is the GDPR-format signature.
+    """
+    if (d / "physiological_cycles.csv").exists():
+        return "standard"
+    if (d / "Health").is_dir():
+        return "gdpr"
+    raise FileNotFoundError(
+        f"Whoop export not recognized at {d}. "
+        f"Expected either 'physiological_cycles.csv' (standard) "
+        f"or 'Health/' subdir (GDPR)."
+    )
+
+
+# ── Standard CSV export (current Whoop dashboard export) ──────────────────────
+
+
+def _parse_local_dt(s: pd.Series, tz_col: pd.Series) -> pd.Series:
+    """Parse naive local datetimes with per-row timezone offset → UTC.
+
+    Whoop CSVs ship naive local timestamps alongside a ``Cycle timezone``
+    column like ``UTC+02:00`` or ``UTC-05:00``. Combine to get a true UTC
+    instant.
+    """
+    naive = pd.to_datetime(s, errors="coerce")
+    # Whoop tz format: "UTC+02:00". Parse to hours offset.
+    offsets_hours = (
+        tz_col.str.replace("UTC", "", regex=False)
+        .str.replace(":", ".", regex=False)
+        .astype(float)
+    )
+    # Convert decimal hours like 2.30 → 2.5 (only matters for half-hour zones)
+    offsets_hours = offsets_hours.apply(
+        lambda x: int(x) + (x - int(x)) * (10 / 6) if pd.notna(x) else x
+    )
+    return naive - pd.to_timedelta(offsets_hours, unit="h")
+
+
+def _load_sleep_standard(d: Path) -> pd.DataFrame:
+    """Load daily sleep summary from new-format ``sleeps.csv``.
+
+    Index: date (waking day, derived from ``Wake onset`` local date).
+    Excludes naps from the main per-day record.
+    """
+    path = d / "sleeps.csv"
+    if not path.exists():
+        raise FileNotFoundError(f"Whoop sleeps.csv not found at {path}")
+
+    # sleeps.csv columns (standard CSV export, as of 2026-05): "Cycle start time",
+    # "Cycle end time", "Cycle timezone", "Sleep onset", "Wake onset",
+    # "Sleep performance %", "Respiratory rate (rpm)", "Asleep duration (min)",
+    # "In bed duration (min)", "Light sleep duration (min)",
+    # "Deep (SWS) duration (min)", "REM duration (min)", "Awake duration (min)",
+    # "Sleep need (min)", "Sleep debt (min)", "Sleep efficiency %",
+    # "Sleep consistency %", "Nap"
+    df = pd.read_csv(path)
+    df = df[df["Nap"].astype(str).str.lower() != "true"].copy()
+
+    # Wake onset is naive local time; use its local date as the index.
+    wake_local = pd.to_datetime(df["Wake onset"], errors="coerce")
+    df = df[wake_local.notna()].copy()
+    wake_local = wake_local[wake_local.notna()]
+
+    out = pd.DataFrame(
+        {
+            "score": df["Sleep performance %"],
+            "duration": pd.to_timedelta(df["Asleep duration (min)"], unit="m"),
+            "time_in_bed": pd.to_timedelta(df["In bed duration (min)"], unit="m"),
+            "efficiency": df["Sleep efficiency %"],
+            "consistency": df["Sleep consistency %"],
+            "debt": df["Sleep debt (min)"],
+            "respiratory_rate": df["Respiratory rate (rpm)"],
+            "rem": pd.to_timedelta(df["REM duration (min)"], unit="m"),
+            "deep": pd.to_timedelta(df["Deep (SWS) duration (min)"], unit="m"),
+            "light": pd.to_timedelta(df["Light sleep duration (min)"], unit="m"),
+            "awake": pd.to_timedelta(df["Awake duration (min)"], unit="m"),
+        }
+    )
+    out.index = pd.to_datetime(wake_local.dt.date, utc=True)
+    out.index.name = "timestamp"
+    return out.sort_index()
+
+
+def _load_cycles_standard(d: Path) -> pd.DataFrame:
+    """Load daily cycle metrics from ``physiological_cycles.csv``.
+
+    This is the daily HR / HRV / recovery / strain row — replaces the
+    granular ``metrics*.csv`` loader from the GDPR export at daily resolution.
+    """
+    path = d / "physiological_cycles.csv"
+    if not path.exists():
+        raise FileNotFoundError(f"Whoop physiological_cycles.csv not found at {path}")
+
+    # physiological_cycles.csv columns (standard CSV export, as of 2026-05):
+    # "Cycle start time", "Cycle end time", "Cycle timezone", "Recovery score %",
+    # "Resting heart rate (bpm)", "Heart rate variability (ms)",
+    # "Skin temp (celsius)", "Blood oxygen %", "Day Strain", "Energy burned (cal)",
+    # "Max HR (bpm)", "Average HR (bpm)", "Sleep onset", "Wake onset",
+    # "Sleep performance %", "Respiratory rate (rpm)", "Asleep duration (min)",
+    # "In bed duration (min)", "Light sleep duration (min)",
+    # "Deep (SWS) duration (min)", "REM duration (min)", "Awake duration (min)",
+    # "Sleep need (min)", "Sleep debt (min)", "Sleep efficiency %",
+    # "Sleep consistency %"
+    df = pd.read_csv(path)
+
+    # Use Wake onset for date assignment (same convention as sleep)
+    wake_local = pd.to_datetime(df["Wake onset"], errors="coerce")
+    df = df[wake_local.notna()].copy()
+    wake_local = wake_local[wake_local.notna()]
+
+    out = pd.DataFrame(
+        {
+            "recovery": df["Recovery score %"],
+            "resting_hr": df["Resting heart rate (bpm)"],
+            "hrv": df["Heart rate variability (ms)"],
+            "skin_temp": df["Skin temp (celsius)"],
+            "spo2": df["Blood oxygen %"],
+            "strain": df["Day Strain"],
+            "energy_kcal": df["Energy burned (cal)"],
+        }
+    )
+    out.index = pd.to_datetime(wake_local.dt.date, utc=True)
+    out.index.name = "timestamp"
+    return out.sort_index()
+
+
+def _load_workouts_standard(d: Path) -> pd.DataFrame:
+    """Load workout events from ``workouts.csv`` (event-level, one row per workout)."""
+    path = d / "workouts.csv"
+    if not path.exists():
+        raise FileNotFoundError(f"Whoop workouts.csv not found at {path}")
+
+    # workouts.csv columns (standard CSV export, as of 2026-05):
+    # "Cycle start time", "Cycle end time", "Cycle timezone",
+    # "Workout start time", "Workout end time", "Duration (min)",
+    # "Activity name", "Activity Strain", "Energy burned (cal)",
+    # "Max HR (bpm)", "Average HR (bpm)",
+    # "HR Zone 1 %", "HR Zone 2 %", "HR Zone 3 %", "HR Zone 4 %", "HR Zone 5 %",
+    # "GPS enabled"
+    df = pd.read_csv(path)
+    df["start"] = pd.to_datetime(df["Workout start time"], errors="coerce", utc=True)
+    df["end"] = pd.to_datetime(df["Workout end time"], errors="coerce", utc=True)
+    df["duration"] = pd.to_timedelta(df["Duration (min)"], unit="m")
+    return df.rename(
+        columns={
+            "Activity name": "activity",
+            "Activity Strain": "strain",
+            "Energy burned (cal)": "energy_kcal",
+            "Max HR (bpm)": "max_hr",
+            "Average HR (bpm)": "avg_hr",
+        }
+    )[
+        [
+            "start",
+            "end",
+            "duration",
+            "activity",
+            "strain",
+            "energy_kcal",
+            "max_hr",
+            "avg_hr",
+        ]
+    ]
+
+
+def _load_journal_standard(d: Path) -> pd.DataFrame:
+    """Load journal entries from ``journal_entries.csv``.
+
+    Event-level: one row per question-answer. Includes free-text Notes column
+    when present — callers wanting privacy-aware aggregation should pivot via
+    :func:`load_journal_daily_df` instead.
+    """
+    path = d / "journal_entries.csv"
+    if not path.exists():
+        raise FileNotFoundError(f"Whoop journal_entries.csv not found at {path}")
+
+    # journal_entries.csv columns (standard CSV export, as of 2026-05):
+    # "Cycle start time", "Cycle end time", "Cycle timezone",
+    # "Question text", "Answered yes" (bool string), "Notes" (free text, often empty)
+    # Question text is full natural-language ("Engaged in sexual activity?",
+    # "Have any caffeine?", etc.) — Whoop changes the set of questions over time.
+    df = pd.read_csv(path)
+    df["cycle_start"] = pd.to_datetime(df["Cycle start time"], errors="coerce", utc=True)
+    df = df.rename(
+        columns={
+            "Question text": "question",
+            "Answered yes": "answered_yes",
+            "Notes": "notes",
+        }
+    )
+    return df[["cycle_start", "question", "answered_yes", "notes"]]
+
+
+def load_journal_daily_df(include_notes: bool = False) -> pd.DataFrame:
+    """Pivot journal entries to one row per day, one column per question.
+
+    Returns a DataFrame with date index and one boolean column per Whoop
+    journal question (e.g. ``slept_well``, ``stressed``). Question text is
+    normalized to a snake_case key.
+
+    Parameters
+    ----------
+    include_notes
+        If True, also include a 'journal_notes' column with concatenated
+        free-text notes for the day. Default False for privacy (notes can
+        contain sensitive personal context).
+    """
+    raw = _load_journal_standard(_whoop_dir())
+    raw["date"] = raw["cycle_start"].dt.date
+    raw["question_key"] = raw["question"].apply(_question_to_key)
+
+    pivot = raw.pivot_table(
+        index="date",
+        columns="question_key",
+        values="answered_yes",
+        aggfunc=lambda s: any(str(v).lower() == "true" for v in s),
+    )
+    pivot.index = pd.to_datetime(pivot.index, utc=True)
+    pivot.index.name = "timestamp"
+
+    if include_notes:
+        notes_per_day = (
+            raw.dropna(subset=["notes"])
+            .groupby("date")["notes"]
+            .apply(lambda s: " | ".join(str(n) for n in s if str(n).strip()))
+        )
+        pivot["notes"] = notes_per_day
+        pivot["notes"] = pivot["notes"].reindex(pivot.index.date)
+
+    return pivot.sort_index()
+
+
+def _question_to_key(question: str) -> str:
+    """Normalize a Whoop journal question to a stable snake_case column key.
+
+    Examples
+    --------
+    >>> _question_to_key("Engaged in sexual activity?")
+    'engaged_in_sexual_activity'
+    >>> _question_to_key("Have any caffeine?")
+    'caffeine'
+    >>> _question_to_key("Felt stressed today?")
+    'stressed'
+    """
+    import re
+
+    if not isinstance(question, str):
+        return "unknown"
+    # Strip leading verbs/auxiliaries to get to the noun phrase
+    q = question.lower().strip().rstrip("?").strip()
+    for prefix in (
+        "have any ",
+        "had any ",
+        "any ",
+        "felt ",
+        "feel ",
+        "did you ",
+        "do you ",
+        "are you ",
+    ):
+        if q.startswith(prefix):
+            q = q[len(prefix) :]
+            break
+    # Remove trailing "today" / "yesterday"
+    q = re.sub(r"\s+(today|yesterday)$", "", q)
+    # Normalize to snake_case
+    q = re.sub(r"[^a-z0-9]+", "_", q).strip("_")
+    return q or "unknown"
+
+
+# ── GDPR full export (legacy) ─────────────────────────────────────────────────
+
+
+def _load_heartrate_gdpr(d: Path) -> pd.DataFrame:
+    """Granular per-minute HR from the GDPR-export ``Health/metrics*.csv`` files."""
+    health = d / "Health"
+    if not health.is_dir():
+        raise FileNotFoundError(f"Whoop GDPR Health/ dir not found at {health}")
+
+    # Health/metrics-*.csv columns (GDPR full export): hr, accel_x, accel_y,
+    # accel_z, skin_temp, ts — one row per minute. Multiple files split by
+    # date range; concatenated here.
     dfs = []
-    for file in (Path(whoop_export_dir) / "Health").expanduser().iterdir():
+    for file in health.iterdir():
         if file.name.startswith("metrics") and file.name.endswith(".csv"):
-            df = pd.read_csv(Path(file).expanduser(), parse_dates=True)
+            df = pd.read_csv(file, parse_dates=True)
             dfs.append(df)
+    if not dfs:
+        raise FileNotFoundError(f"No metrics*.csv files in {health}")
 
-    # df columns are: hr, accel_x, accel_y, accel_z, skin_temp, ts
-    # combine dfs together
     df = pd.concat(dfs, ignore_index=True)
     df = df.set_index(pd.DatetimeIndex(df["ts"]))
     del df["ts"]
-
-    # drop non-HR columns
-    df = df[["hr"]]
-
-    # sort
-    df = df.sort_index()
-
-    # rename index to timestamp
+    # Only HR kept here; accel_*/skin_temp available in raw df if needed
+    df = df[["hr"]].sort_index()
     df.index.name = "timestamp"
-
     return df
 
 
-def load_sleep_df() -> pd.DataFrame:
-    whoop_export_dir = load_config()["data"]["whoop"]
-    filename = Path(whoop_export_dir) / "Health" / "sleeps.csv"
-    df = pd.read_csv(filename.expanduser(), parse_dates=True)
+def _load_sleep_gdpr(d: Path) -> pd.DataFrame:
+    """Legacy GDPR-format sleep load (uses ``during`` JSON-tuple column)."""
+    path = d / "Health" / "sleeps.csv"
+    if not path.exists():
+        raise FileNotFoundError(f"Whoop GDPR sleeps.csv not found at {path}")
 
-    # df columns are: "created_at","updated_at","activity_id","score","quality_duration","latency","max_heart_rate","average_heart_rate","debt_pre","debt_post","need_from_strain","sleep_need","habitual_sleep_need","disturbances","time_in_bed","light_sleep_duration","slow_wave_sleep_duration","rem_sleep_duration","cycles_count","wake_duration","arousal_time","no_data_duration","in_sleep_efficiency","credit_from_naps","hr_baseline","respiratory_rate","sleep_consistency","algo_version","projected_score","projected_sleep","optimal_sleep_times","kilojoules","user_id","during","timezone_offset","survey_response_id","percent_recorded","auto_detected","state","responded","team_act_id","source","is_significant","is_normal","is_nap"
-    # we are interested in the "during" column, which is a JSON string of a 2-tuple with isoformat timestamps
+    # Health/sleeps.csv columns (GDPR full export): created_at, updated_at,
+    # activity_id, score, quality_duration, latency, max_heart_rate,
+    # average_heart_rate, debt_pre, debt_post, need_from_strain, sleep_need,
+    # habitual_sleep_need, disturbances, time_in_bed, light_sleep_duration,
+    # slow_wave_sleep_duration, rem_sleep_duration, cycles_count,
+    # wake_duration, arousal_time, no_data_duration, in_sleep_efficiency,
+    # credit_from_naps, hr_baseline, respiratory_rate, sleep_consistency,
+    # algo_version, projected_score, projected_sleep, optimal_sleep_times,
+    # kilojoules, user_id, during, timezone_offset, survey_response_id,
+    # percent_recorded, auto_detected, state, responded, team_act_id, source,
+    # is_significant, is_normal, is_nap
+    # The "during" column is a Postgres tstzrange string with start/end
+    # iso-format timestamps; we extract those as start/end columns.
+    df = pd.read_csv(path, parse_dates=True)
+
     def parse_during(x):
-        try:
-            return eval(x.replace(")", "]"))
-        except:
-            print(x)
-            raise
+        return eval(x.replace(")", "]"))
 
     df["start"] = pd.to_datetime(df["during"].apply(lambda x: parse_during(x)[0]))
     df["end"] = pd.to_datetime(df["during"].apply(lambda x: parse_during(x)[1]))
     df["duration"] = df["end"] - df["start"]
 
-    # keep only the columns we want
     df = df[["start", "end", "duration", "score"]]
 
-    # set index and sort
+    # Hard-coded 8-hour offset retained from legacy code — works for Erik's
+    # historical data (UTC+8 era). Re-evaluate if older data with different
+    # timezones is loaded.
     offset = timedelta(hours=8)
     df = df.set_index(
         pd.to_datetime(pd.DatetimeIndex(df["start"] - offset).date, utc=True)  # type: ignore[arg-type]
     )
     df = df.sort_index()
-
-    # rename index to timestamp
     df.index.name = "timestamp"
-
     return df
+
+
+# ── Public API (format-dispatching) ───────────────────────────────────────────
+
+
+def load_heartrate_df() -> pd.DataFrame:
+    """Load granular HR data. Only available for GDPR-format exports.
+
+    Standard exports don't include per-minute HR — use :func:`load_cycles_df`
+    for daily HR/HRV summaries instead.
+    """
+    d = _whoop_dir()
+    fmt = _detect_format(d)
+    if fmt == "gdpr":
+        return _load_heartrate_gdpr(d)
+    raise NotImplementedError(
+        f"Granular heartrate data not available in '{fmt}' Whoop export format. "
+        f"Use load_cycles_df() for daily HR/HRV summary, or request a GDPR "
+        f"full export from https://privacy.whoop.com/."
+    )
+
+
+def load_sleep_df() -> pd.DataFrame:
+    """Load daily sleep summary. Works for both export formats."""
+    d = _whoop_dir()
+    fmt = _detect_format(d)
+    if fmt == "standard":
+        return _load_sleep_standard(d)
+    return _load_sleep_gdpr(d)
+
+
+def load_cycles_df() -> pd.DataFrame:
+    """Load daily physiological cycle summary (recovery, HRV, RHR, strain).
+
+    Only available in the standard export format.
+    """
+    d = _whoop_dir()
+    if _detect_format(d) != "standard":
+        raise NotImplementedError(
+            "Cycle data only available in standard Whoop export, not GDPR full export."
+        )
+    return _load_cycles_standard(d)
+
+
+def load_workouts_df() -> pd.DataFrame:
+    """Load workout events. Only available in the standard export format."""
+    d = _whoop_dir()
+    if _detect_format(d) != "standard":
+        raise NotImplementedError(
+            "Workout data only available in standard Whoop export, not GDPR full export."
+        )
+    return _load_workouts_standard(d)

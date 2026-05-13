@@ -48,25 +48,17 @@ def _detect_format(d: Path) -> WhoopFormat:
 # ── Standard CSV export (current Whoop dashboard export) ──────────────────────
 
 
-def _parse_local_dt(s: pd.Series, tz_col: pd.Series) -> pd.Series:
-    """Parse naive local datetimes with per-row timezone offset → UTC.
+def _to_utc(timestamp_col: pd.Series, tz_col: pd.Series) -> pd.Series:
+    """Convert naive local timestamps + per-row tz offset → UTC.
 
-    Whoop CSVs ship naive local timestamps alongside a ``Cycle timezone``
-    column like ``UTC+02:00`` or ``UTC-05:00``. Combine to get a true UTC
-    instant.
+    Whoop CSVs ship the local timestamp in one column and the offset in
+    another (e.g. ``"2026-05-09 16:52:30"`` + ``"UTC+02:00"``). Concatenate
+    into an ISO-with-offset string and let pandas convert to UTC.
     """
-    naive = pd.to_datetime(s, errors="coerce")
-    # Whoop tz format: "UTC+02:00". Parse to hours offset.
-    offsets_hours = (
-        tz_col.str.replace("UTC", "", regex=False)
-        .str.replace(":", ".", regex=False)
-        .astype(float)
-    )
-    # Convert decimal hours like 2.30 → 2.5 (only matters for half-hour zones)
-    offsets_hours = offsets_hours.apply(
-        lambda x: int(x) + (x - int(x)) * (10 / 6) if pd.notna(x) else x
-    )
-    return naive - pd.to_timedelta(offsets_hours, unit="h")
+    # "UTC+02:00" → "+02:00"; pandas understands ISO with offset directly.
+    offset = tz_col.str.replace("UTC", "", regex=False)
+    iso = timestamp_col.astype(str) + offset.astype(str)
+    return pd.to_datetime(iso, utc=True, errors="coerce")
 
 
 def _load_sleep_standard(d: Path) -> pd.DataFrame:
@@ -171,8 +163,9 @@ def _load_workouts_standard(d: Path) -> pd.DataFrame:
     # "HR Zone 1 %", "HR Zone 2 %", "HR Zone 3 %", "HR Zone 4 %", "HR Zone 5 %",
     # "GPS enabled"
     df = pd.read_csv(path)
-    df["start"] = pd.to_datetime(df["Workout start time"], errors="coerce", utc=True)
-    df["end"] = pd.to_datetime(df["Workout end time"], errors="coerce", utc=True)
+    # Workout timestamps are naive local; convert using each row's "Cycle timezone".
+    df["start"] = _to_utc(df["Workout start time"], df["Cycle timezone"])
+    df["end"] = _to_utc(df["Workout end time"], df["Cycle timezone"])
     df["duration"] = pd.to_timedelta(df["Duration (min)"], unit="m")
     return df.rename(
         columns={
@@ -257,8 +250,11 @@ def load_journal_daily_df(include_notes: bool = False) -> pd.DataFrame:
             .groupby("date")["notes"]
             .apply(lambda s: " | ".join(str(n) for n in s if str(n).strip()))
         )
+        # notes_per_day is indexed by Python date; pivot.index is a UTC
+        # DatetimeIndex. Bring them into the same shape before assignment,
+        # otherwise pandas aligns by value and silently fills all NaN.
+        notes_per_day.index = pd.to_datetime(notes_per_day.index, utc=True)
         pivot["notes"] = notes_per_day
-        pivot["notes"] = pivot["notes"].reindex(pivot.index.date)
 
     return pivot.sort_index()
 
@@ -349,10 +345,18 @@ def _load_sleep_gdpr(d: Path) -> pd.DataFrame:
     # is_significant, is_normal, is_nap
     # The "during" column is a Postgres tstzrange string with start/end
     # iso-format timestamps; we extract those as start/end columns.
+    import ast
+
     df = pd.read_csv(path, parse_dates=True)
 
     def parse_during(x):
-        return eval(x.replace(")", "]"))
+        # tstzrange ships as e.g. `["2022-01-01T00:00:00","2022-01-01T08:00:00")`.
+        # Rewrite the closing paren to make it a Python-syntax list, then
+        # literal_eval (safer than eval on file content).
+        try:
+            return ast.literal_eval(x.replace(")", "]"))
+        except (ValueError, SyntaxError):
+            raise ValueError(f"Could not parse `during` value: {x!r}") from None
 
     df["start"] = pd.to_datetime(df["during"].apply(lambda x: parse_during(x)[0]))
     df["end"] = pd.to_datetime(df["during"].apply(lambda x: parse_during(x)[1]))

@@ -110,6 +110,7 @@ def test_load_sleep_standard(standard_export: Path) -> None:
     # Nap row excluded → 2 rows
     assert len(df) == 2
     assert df.index.name == "timestamp"
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert str(df.index.tz) == "UTC"
     assert df.index.is_monotonic_increasing
 
@@ -139,6 +140,7 @@ def test_load_cycles_standard(standard_export: Path) -> None:
 
     assert len(df) == 2
     assert df.index.name == "timestamp"
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert str(df.index.tz) == "UTC"
 
     for col in (
@@ -192,6 +194,7 @@ def test_load_journal_daily_df_pivot(patched_whoop_dir: Path) -> None:
     # Two days of pivoted data
     assert len(df) == 2
     assert df.index.name == "timestamp"
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert str(df.index.tz) == "UTC"
 
     # Normalized column keys present

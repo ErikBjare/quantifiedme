@@ -206,9 +206,10 @@ def _load_journal_standard(d: Path) -> pd.DataFrame:
     # Question text is full natural-language ("Engaged in sexual activity?",
     # "Have any caffeine?", etc.) — Whoop changes the set of questions over time.
     df = pd.read_csv(path)
-    df["cycle_start"] = pd.to_datetime(
-        df["Cycle start time"], errors="coerce", utc=True
-    )
+    # Use Cycle end time (= wake morning) to match the wake-date convention
+    # used by _load_sleep_standard / _load_cycles_standard. Using Cycle start
+    # time would offset journal rows one day behind sleep/cycles in joins.
+    df["cycle_end"] = pd.to_datetime(df["Cycle end time"], errors="coerce", utc=True)
     if "Notes" not in df.columns:
         df["Notes"] = pd.NA
     df = df.rename(
@@ -218,7 +219,7 @@ def _load_journal_standard(d: Path) -> pd.DataFrame:
             "Notes": "notes",
         }
     )
-    return df[["cycle_start", "question", "answered_yes", "notes"]]
+    return df[["cycle_end", "question", "answered_yes", "notes"]]
 
 
 def load_journal_daily_df(include_notes: bool = False) -> pd.DataFrame:
@@ -236,7 +237,7 @@ def load_journal_daily_df(include_notes: bool = False) -> pd.DataFrame:
         contain sensitive personal context).
     """
     raw = _load_journal_standard(_whoop_dir())
-    raw["date"] = raw["cycle_start"].dt.date
+    raw["date"] = raw["cycle_end"].dt.date
     raw["question_key"] = raw["question"].apply(_question_to_key)
 
     pivot = raw.pivot_table(

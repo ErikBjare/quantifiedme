@@ -184,8 +184,26 @@ def test_load_journal_standard_raw(standard_export: Path) -> None:
     df = _load_journal_standard(standard_export)
 
     assert len(df) == 5
-    assert list(df.columns) == ["cycle_start", "question", "answered_yes", "notes"]
-    assert str(df["cycle_start"].dt.tz) == "UTC"
+    assert list(df.columns) == ["cycle_end", "question", "answered_yes", "notes"]
+    assert str(df["cycle_end"].dt.tz) == "UTC"
+
+
+def test_journal_date_index_aligns_with_sleep(patched_whoop_dir: Path) -> None:
+    """Journal entries must be indexed by the same wake-date convention as sleep
+    and cycles loaders — otherwise all_df.py joins drop every row.
+
+    Greptile P1 (2026-05-19): cycle_start indexes journal one day behind sleep.
+    """
+    sleep = load_sleep_df()
+    journal = load_journal_daily_df()
+
+    # Both journal rows should match a sleep row by date. (Sleep has 3 rows
+    # because of the nap; journal has 2 rows from the 2 distinct cycle ends.)
+    common = sleep.index.intersection(journal.index)
+    assert len(common) == len(journal), (
+        f"Journal dates {list(journal.index)} should align with sleep dates "
+        f"{list(sleep.index)} — got {len(common)} aligned of {len(journal)}"
+    )
 
 
 def test_load_journal_daily_df_pivot(patched_whoop_dir: Path) -> None:

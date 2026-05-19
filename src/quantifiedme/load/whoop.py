@@ -206,7 +206,9 @@ def _load_journal_standard(d: Path) -> pd.DataFrame:
     # Question text is full natural-language ("Engaged in sexual activity?",
     # "Have any caffeine?", etc.) — Whoop changes the set of questions over time.
     df = pd.read_csv(path)
-    df["cycle_start"] = pd.to_datetime(df["Cycle start time"], errors="coerce", utc=True)
+    df["cycle_start"] = pd.to_datetime(
+        df["Cycle start time"], errors="coerce", utc=True
+    )
     if "Notes" not in df.columns:
         df["Notes"] = pd.NA
     df = df.rename(

@@ -19,9 +19,15 @@ def load_heartrate_df() -> pd.DataFrame:
     dfs.append(fitbit_df)
 
     print("# Loading Whoop heartrate data")
-    whoop_df = whoop.load_heartrate_df()
-    whoop_df["source"] = "whoop"
-    dfs.append(whoop_df)
+    try:
+        whoop_df = whoop.load_heartrate_df()
+    except NotImplementedError as e:
+        # Standard Whoop CSV export ships only daily HR (cycles), not per-minute.
+        # Skip granular HR cleanly so the rest of the pipeline still runs.
+        print(f"  Skipped: {e}")
+    else:
+        whoop_df["source"] = "whoop"
+        dfs.append(whoop_df)
 
     df = pd.concat(dfs)
     df = df.sort_index()

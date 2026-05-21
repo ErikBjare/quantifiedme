@@ -15,13 +15,14 @@ from aw_core import Event
 
 from ..load.location import load_daily_df as load_location_daily_df
 from ..load.qslang import load_daily_df as load_drugs_df
+from ..load.whoop import load_journal_daily_df as load_whoop_journal_daily_df
 from .heartrate import load_heartrate_summary_df
 from .screentime import load_category_df, load_screentime_cached
 from .sleep import load_sleep_df
 
 logger = logging.getLogger(__name__)
 
-Sources = Literal["screentime", "heartrate", "drugs", "location", "sleep"]
+Sources = Literal["screentime", "heartrate", "drugs", "location", "sleep", "journal"]
 
 
 def load_all_df(
@@ -75,6 +76,21 @@ def load_all_df(
         df_sleep = load_sleep_df()
         df_sleep.index = df_sleep.index.date  # type: ignore
         df = join(df, df_sleep.add_prefix("sleep:"))
+
+    if "journal" not in ignore:
+        print("\n# Adding journal (Whoop self-reports)")
+        # include_notes defaults to False — free-text notes are excluded for
+        # privacy. Pass include_notes=True via the loader directly if needed.
+        try:
+            df_journal = load_whoop_journal_daily_df()
+        except (FileNotFoundError, NotImplementedError, KeyError) as e:
+            # Journal source is optional: only ships in the standard Whoop
+            # export, and may not be configured at all. KeyError is raised
+            # by _whoop_dir when the config has no `data.whoop` entry.
+            logger.warning(f"Skipping journal source: {e}")
+        else:
+            df_journal.index = df_journal.index.date  # type: ignore
+            df = join(df, df_journal.add_prefix("journal:"))
 
     print()
 

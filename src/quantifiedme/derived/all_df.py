@@ -15,6 +15,7 @@ from aw_core import Event
 
 from ..load.location import load_daily_df as load_location_daily_df
 from ..load.qslang import load_daily_df as load_drugs_df
+from ..load.whoop import load_cycles_df as load_whoop_cycles_df
 from ..load.whoop import load_journal_daily_df as load_whoop_journal_daily_df
 from .heartrate import load_heartrate_summary_df
 from .screentime import load_category_df, load_screentime_cached
@@ -22,7 +23,7 @@ from .sleep import load_sleep_df
 
 logger = logging.getLogger(__name__)
 
-Sources = Literal["screentime", "heartrate", "drugs", "location", "sleep", "journal"]
+Sources = Literal["screentime", "heartrate", "drugs", "location", "sleep", "journal", "cycles"]
 
 
 def load_all_df(
@@ -75,6 +76,16 @@ def load_all_df(
         df_sleep = load_sleep_df()
         df_sleep.index = pd.DatetimeIndex(df_sleep.index.date)  # type: ignore
         df = join(df, df_sleep.add_prefix("sleep:"))
+
+    if "cycles" not in ignore:
+        print("\n# Adding Whoop cycles (recovery, HRV, RHR, strain, SpO2)")
+        try:
+            df_cycles = load_whoop_cycles_df()
+        except (FileNotFoundError, NotImplementedError, KeyError) as e:
+            logger.warning(f"Skipping cycles source: {e}")
+        else:
+            df_cycles.index = pd.DatetimeIndex(df_cycles.index.date)  # type: ignore
+            df = join(df, df_cycles.add_prefix("whoop:"))
 
     if "journal" not in ignore:
         print("\n# Adding journal (Whoop self-reports)")

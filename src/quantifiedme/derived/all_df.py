@@ -30,6 +30,7 @@ def load_all_df(
     fast=True,
     screentime_events: list[Event] | None = None,
     ignore: list[Sources] | None = None,
+    days: int | None = None,
 ) -> pd.DataFrame:
     """
     Loads a bunch of data into a single dataframe with one row per day.
@@ -38,7 +39,10 @@ def load_all_df(
     if ignore is None:
         ignore = []
     df = pd.DataFrame()
-    since = datetime.now(tz=timezone.utc) - timedelta(days=30 if fast else 2 * 365)
+    if days is not None:
+        since = datetime.now(tz=timezone.utc) - timedelta(days=days)
+    else:
+        since = datetime.now(tz=timezone.utc) - timedelta(days=30 if fast else 2 * 365)
     print(f"Loading data since {since}")
 
     if "screentime" not in ignore:
@@ -123,7 +127,7 @@ def join(df_target: pd.DataFrame, df_source: pd.DataFrame) -> pd.DataFrame:
     print(
         f"Adding new columns: {list(df_source.columns.difference(df_target.columns))!s}"
     )
-    return df_target.join(df_source) if not df_target.empty else df_source
+    return df_target.join(df_source, how="outer") if not df_target.empty else df_source
 
 
 DateLike: TypeAlias = datetime | date | pd.Timestamp

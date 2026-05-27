@@ -52,8 +52,7 @@ def load_all_df(
     if "heartrate" not in ignore:
         print("\n# Adding heartrate")
         df_hr = load_heartrate_summary_df(freq="D")
-        # translate daily datetime column to a date column
-        df_hr.index = df_hr.index.date  # type: ignore
+        df_hr.index = pd.DatetimeIndex(df_hr.index.date)  # type: ignore
         df = join(df, df_hr)
 
     if "drugs" not in ignore:
@@ -68,13 +67,13 @@ def load_all_df(
         print("\n# Adding location")
         # TODO: add boolean for if sleeping together
         df_location = load_location_daily_df()
-        df_location.index = df_location.index.date  # type: ignore
+        df_location.index = pd.DatetimeIndex(df_location.index.date)  # type: ignore
         df = join(df, df_location.add_prefix("loc:"))
 
     if "sleep" not in ignore:
         print("\n# Adding sleep")
         df_sleep = load_sleep_df()
-        df_sleep.index = df_sleep.index.date  # type: ignore
+        df_sleep.index = pd.DatetimeIndex(df_sleep.index.date)  # type: ignore
         df = join(df, df_sleep.add_prefix("sleep:"))
 
     if "journal" not in ignore:
@@ -89,7 +88,7 @@ def load_all_df(
             # by _whoop_dir when the config has no `data.whoop` entry.
             logger.warning(f"Skipping journal source: {e}")
         else:
-            df_journal.index = df_journal.index.date  # type: ignore
+            df_journal.index = pd.DatetimeIndex(df_journal.index.date)  # type: ignore
             df = join(df, df_journal.add_prefix("journal:"))
 
     print()

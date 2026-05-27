@@ -29,8 +29,20 @@ def _check_index(df: pd.DataFrame, src=None) -> bool:
 def _merge_several_sleep_records_per_day(df: pd.DataFrame) -> pd.DataFrame:
     duplicates = df.index.duplicated().sum()
     if duplicates:
-        df = df.groupby(df.index).agg({"start": "min", "end": "max", "score": "max"})  # type: ignore
-        df["duration"] = df["end"] - df["start"]
+        # Build aggregation dict from available columns — standard Whoop
+        # export has duration/score but not start/end.
+        agg: dict[str, str] = {}
+        if "start" in df.columns:
+            agg["start"] = "min"
+        if "end" in df.columns:
+            agg["end"] = "max"
+        if "score" in df.columns:
+            agg["score"] = "max"
+        if "duration" in df.columns:
+            agg["duration"] = "max"
+        df = df.groupby(df.index).agg(agg)  # type: ignore
+        if "start" in df.columns and "end" in df.columns:
+            df["duration"] = df["end"] - df["start"]
         logger.warning(f"Merged {duplicates} duplicate sleep entries")
     return df
 

@@ -135,6 +135,37 @@ class TestBuildFeatureFrame:
         assert not X.isna().any().any()
         assert not y.isna().any()
 
+    def test_exclude_screentime_drops_lag_roll_columns(self, sample_df: pd.DataFrame):
+        X, _ = build_feature_frame(
+            sample_df, target_col="time:Work", include_screentime=False
+        )
+        assert not [c for c in X.columns if c.startswith(("lag:", "roll:"))]
+        # Substance, temporal, and AR blocks should still be present
+        assert any(c.startswith("ar:") for c in X.columns)
+
+    def test_exclude_screentime_extends_valid_rows(self):
+        # Sleep present throughout, but screen time only for the recent tail.
+        # With screen-time features the early rows are dropped (NaN lags);
+        # without them the full sleep history stays usable.
+        dates = pd.date_range("2020-01-01", periods=60, freq="D")
+        rng = np.random.default_rng(3)
+        df = pd.DataFrame(
+            {
+                "sleep:score": rng.uniform(50, 100, 60),
+                "tag:caffeine": rng.choice([0, 1], 60),
+                "time:Work": [np.nan] * 40 + list(rng.uniform(0, 8, 20)),
+            },
+            index=dates.date,
+        )
+        X_with, _ = build_feature_frame(
+            df, target_col="sleep:score", include_screentime=True
+        )
+        X_without, _ = build_feature_frame(
+            df, target_col="sleep:score", include_screentime=False
+        )
+        assert len(X_without) > len(X_with)
+        assert not X_without.isna().any().any()
+
 
 @pytest.fixture
 def wellbeing_df() -> pd.DataFrame:

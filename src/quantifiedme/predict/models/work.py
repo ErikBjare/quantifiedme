@@ -128,6 +128,7 @@ def train_bayesian_work(
     n_samples: int = 1000,
     n_tune: int = 1000,
     top_n_substances: int = 15,
+    include_screentime: bool = True,
 ) -> BayesianWorkResult:
     """Train Bayesian linear model for work consistency prediction.
 
@@ -142,13 +143,20 @@ def train_bayesian_work(
         n_samples: Number of posterior samples per chain.
         n_tune: Number of tuning steps.
         top_n_substances: Number of top substances for feature building.
+        include_screentime: Include AW screen-time features (see
+            build_feature_frame). Disable for pre-AW physiology holdouts.
 
     Returns:
         BayesianWorkResult with trace, metrics, and predictions.
     """
     import pymc as pm
 
-    X, y = build_feature_frame(df, target_col=target_col, top_n_substances=top_n_substances)
+    X, y = build_feature_frame(
+        df,
+        target_col=target_col,
+        top_n_substances=top_n_substances,
+        include_screentime=include_screentime,
+    )
 
     # Time-based split
     split_idx = int(len(X) * (1 - test_fraction))

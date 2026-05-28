@@ -89,6 +89,7 @@ def cmd_sleep(args: argparse.Namespace) -> None:
         n_samples=args.samples,
         n_tune=args.tune,
         max_features=args.max_features,
+        include_screentime=not args.no_screentime,
     )
     _print_bayesian_result(result)
 
@@ -193,6 +194,12 @@ def main(argv: list[str] | None = None) -> None:
     p_sleep.add_argument("--samples", type=int, default=1000, help="Posterior samples per chain")
     p_sleep.add_argument("--tune", type=int, default=1000, help="Tuning steps")
     p_sleep.add_argument("--max-features", type=int, default=12, help="Max features to select")
+    p_sleep.add_argument(
+        "--no-screentime",
+        action="store_true",
+        help="Drop AW screen-time features (extends valid history to pre-2022 "
+        "for sleep targets; physiology doesn't need screen-time anyway)",
+    )
     p_sleep.set_defaults(func=cmd_sleep)
 
     # simulate

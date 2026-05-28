@@ -14,11 +14,15 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import pandas as pd
 
 from ..features import build_feature_frame
+
+if TYPE_CHECKING:
+    import arviz as az
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +55,7 @@ class BayesianWorkResult:
             "  Coefficient estimates (mean ± sd):",
         ]
 
-        summary_df = az.summary(self.trace, var_names=["beta", "intercept"])
+        summary_df = cast(pd.DataFrame, az.summary(self.trace, var_names=["beta", "intercept"]))
         # Show intercept
         if "intercept" in summary_df.index:
             row = summary_df.loc["intercept"]
@@ -278,8 +282,9 @@ def query_intervention(
     Returns:
         Dict with 'baseline', 'intervention', and 'delta' posterior samples.
     """
-    beta_samples = trace.posterior["beta"].values.reshape(-1, len(result.feature_names))
-    intercept_samples = trace.posterior["intercept"].values.flatten()
+    posterior = trace["posterior"]
+    beta_samples = posterior["beta"].values.reshape(-1, len(result.feature_names))
+    intercept_samples = posterior["intercept"].values.flatten()
 
     baseline_pred = (intercept_samples + beta_samples @ baseline_features) * y_std + y_mean
     modified_pred = (intercept_samples + beta_samples @ modified_features) * y_std + y_mean

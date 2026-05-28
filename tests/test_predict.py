@@ -11,6 +11,10 @@ from quantifiedme.predict.features import (
     build_temporal_features,
     decay_kernel,
 )
+from quantifiedme.predict.models.sleep import (
+    WELLBEING_TARGETS,
+    train_sleep_model,
+)
 
 
 @pytest.fixture
@@ -130,3 +134,40 @@ class TestBuildFeatureFrame:
         X, y = build_feature_frame(sample_df, target_col="time:Work")
         assert not X.isna().any().any()
         assert not y.isna().any()
+
+
+@pytest.fixture
+def wellbeing_df() -> pd.DataFrame:
+    """Minimal DataFrame with a Whoop recovery target plus substance tags."""
+    dates = pd.date_range("2024-01-01", periods=40, freq="D")
+    rng = np.random.default_rng(7)
+
+    return pd.DataFrame(
+        {
+            "whoop:recovery": rng.uniform(20, 95, 40),
+            "sleep:score": rng.uniform(50, 100, 40),
+            "time:Work": rng.uniform(0, 8, 40),
+            "tag:caffeine": rng.choice([0, 1], 40, p=[0.3, 0.7]),
+            "tag:cannabinoids": rng.choice([0, 1], 40, p=[0.8, 0.2]),
+        },
+        index=dates.date,
+    )
+
+
+class TestSleepModel:
+    def test_rejects_unknown_target(self, wellbeing_df: pd.DataFrame):
+        with pytest.raises(ValueError, match="Unknown wellbeing target"):
+            train_sleep_model(wellbeing_df, target_col="time:Work")
+
+    def test_raises_when_target_absent(self, wellbeing_df: pd.DataFrame):
+        # whoop:hrv is a valid wellbeing target but not present in this df
+        with pytest.raises(KeyError):
+            train_sleep_model(wellbeing_df, target_col="whoop:hrv")
+
+    def test_wellbeing_targets_build_valid_frame(self, wellbeing_df: pd.DataFrame):
+        # Every present wellbeing target should produce a usable feature frame
+        for target in ("whoop:recovery", "sleep:score"):
+            assert target in WELLBEING_TARGETS
+            X, y = build_feature_frame(wellbeing_df, target_col=target)
+            assert len(X) == len(y) > 0
+            assert not X.isna().any().any()

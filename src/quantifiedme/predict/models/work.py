@@ -11,7 +11,7 @@ Design rationale (from predictive-qs-framework.md):
 """
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import arviz as az
 import numpy as np
@@ -42,7 +42,7 @@ class BayesianWorkResult:
     def summary(self) -> str:
         """Print model summary with coefficient estimates."""
         lines = [
-            f"Bayesian Work Model: {self.target_col}",
+            f"Bayesian QS Model: {self.target_col}",
             f"  Train: n={self.n_train}, R²={self.train_r2:.3f}",
             f"  Test:  n={self.n_test}, R²={self.test_r2:.3f}, RMSE={self.test_rmse:.3f}",
             "",

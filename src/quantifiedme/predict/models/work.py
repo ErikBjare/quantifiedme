@@ -10,13 +10,13 @@ Design rationale (from predictive-qs-framework.md):
   AW data is continuous and current (unlike sleep device exports).
 """
 
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 
-import arviz as az
 import numpy as np
 import pandas as pd
-import pymc as pm
 
 from ..features import build_feature_frame
 
@@ -41,6 +41,8 @@ class BayesianWorkResult:
 
     def summary(self) -> str:
         """Print model summary with coefficient estimates."""
+        import arviz as az
+
         lines = [
             f"Bayesian QS Model: {self.target_col}",
             f"  Train: n={self.n_train}, R²={self.train_r2:.3f}",
@@ -144,6 +146,8 @@ def train_bayesian_work(
     Returns:
         BayesianWorkResult with trace, metrics, and predictions.
     """
+    import pymc as pm
+
     X, y = build_feature_frame(df, target_col=target_col, top_n_substances=top_n_substances)
 
     # Time-based split

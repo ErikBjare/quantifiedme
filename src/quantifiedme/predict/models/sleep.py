@@ -56,7 +56,7 @@ def train_sleep_model(
     n_samples: int = 1000,
     n_tune: int = 1000,
     top_n_substances: int = 15,
-    include_screentime: bool = True,
+    include_screentime: bool = False,
 ) -> BayesianWorkResult:
     """Train a Bayesian model for a sleep/wellbeing target.
 
@@ -76,8 +76,12 @@ def train_sleep_model(
         top_n_substances: Number of top substances for feature building.
         include_screentime: Include AW screen-time features. AW data starts
             2021-06, so screen-time features gate the valid-row span to
-            2021+. Disable to use the target's full history (sleep back to
-            2014, substances to 2017) — enables a genuine pre-2022 holdout.
+            2021+. Defaults to ``False`` here (unlike the work model): screen
+            time is a weak physiology predictor, and excluding it uses the
+            target's full history (sleep back to 2014, substances to 2017),
+            which both improves the fit and enables a genuine pre-2022
+            holdout. Set ``True`` only to compare against the work model on
+            the shared 2021+ span.
 
     Returns:
         BayesianWorkResult with trace, metrics, and posterior predictions.

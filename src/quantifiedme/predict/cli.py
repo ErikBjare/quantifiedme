@@ -182,13 +182,11 @@ def main(argv: list[str] | None = None) -> None:
     p_bayes.set_defaults(func=cmd_bayesian)
 
     # sleep / wellbeing
-    from .models.sleep import DEFAULT_WELLBEING_TARGET
-
     p_sleep = sub.add_parser("sleep", help="Train Bayesian sleep/wellbeing model")
     p_sleep.add_argument("csv", type=Path, help="Path to QS CSV export")
     p_sleep.add_argument(
         "--target",
-        default=DEFAULT_WELLBEING_TARGET,
+        default="whoop:recovery",
         help="Wellbeing target (whoop:recovery, sleep:score, sleep:duration, whoop:hrv, ...)",
     )
     p_sleep.add_argument("--samples", type=int, default=1000, help="Posterior samples per chain")

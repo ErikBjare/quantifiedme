@@ -10,15 +10,19 @@ Design rationale (from predictive-qs-framework.md):
   AW data is continuous and current (unlike sleep device exports).
 """
 
-import logging
-from dataclasses import dataclass, field
+from __future__ import annotations
 
-import arviz as az
+import logging
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, cast
+
 import numpy as np
 import pandas as pd
-import pymc as pm
 
 from ..features import build_feature_frame
+
+if TYPE_CHECKING:
+    import arviz as az
 
 logger = logging.getLogger(__name__)
 
@@ -41,15 +45,17 @@ class BayesianWorkResult:
 
     def summary(self) -> str:
         """Print model summary with coefficient estimates."""
+        import arviz as az
+
         lines = [
-            f"Bayesian Work Model: {self.target_col}",
+            f"Bayesian QS Model: {self.target_col}",
             f"  Train: n={self.n_train}, R²={self.train_r2:.3f}",
             f"  Test:  n={self.n_test}, R²={self.test_r2:.3f}, RMSE={self.test_rmse:.3f}",
             "",
             "  Coefficient estimates (mean ± sd):",
         ]
 
-        summary_df = az.summary(self.trace, var_names=["beta", "intercept"])
+        summary_df = cast(pd.DataFrame, az.summary(self.trace, var_names=["beta", "intercept"]))
         # Show intercept
         if "intercept" in summary_df.index:
             row = summary_df.loc["intercept"]
@@ -126,6 +132,7 @@ def train_bayesian_work(
     n_samples: int = 1000,
     n_tune: int = 1000,
     top_n_substances: int = 15,
+    include_screentime: bool = True,
 ) -> BayesianWorkResult:
     """Train Bayesian linear model for work consistency prediction.
 
@@ -140,11 +147,20 @@ def train_bayesian_work(
         n_samples: Number of posterior samples per chain.
         n_tune: Number of tuning steps.
         top_n_substances: Number of top substances for feature building.
+        include_screentime: Include AW screen-time features (see
+            build_feature_frame). Disable for pre-AW physiology holdouts.
 
     Returns:
         BayesianWorkResult with trace, metrics, and predictions.
     """
-    X, y = build_feature_frame(df, target_col=target_col, top_n_substances=top_n_substances)
+    import pymc as pm
+
+    X, y = build_feature_frame(
+        df,
+        target_col=target_col,
+        top_n_substances=top_n_substances,
+        include_screentime=include_screentime,
+    )
 
     # Time-based split
     split_idx = int(len(X) * (1 - test_fraction))
@@ -266,8 +282,9 @@ def query_intervention(
     Returns:
         Dict with 'baseline', 'intervention', and 'delta' posterior samples.
     """
-    beta_samples = trace.posterior["beta"].values.reshape(-1, len(result.feature_names))
-    intercept_samples = trace.posterior["intercept"].values.flatten()
+    posterior = trace["posterior"]
+    beta_samples = posterior["beta"].values.reshape(-1, len(result.feature_names))
+    intercept_samples = posterior["intercept"].values.flatten()
 
     baseline_pred = (intercept_samples + beta_samples @ baseline_features) * y_std + y_mean
     modified_pred = (intercept_samples + beta_samples @ modified_features) * y_std + y_mean

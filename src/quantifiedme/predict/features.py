@@ -238,6 +238,7 @@ def build_feature_frame(
     top_n_substances: int | None = 15,
     lag_days: list[int] | None = None,
     substance_window: int = 7,
+    include_screentime: bool = True,
 ) -> tuple[pd.DataFrame, pd.Series]:
     """Build the full feature frame for prediction.
 
@@ -251,6 +252,12 @@ def build_feature_frame(
         top_n_substances: Number of top substances to include.
         lag_days: Lag days for screen time features.
         substance_window: Lookback window for substance kernels.
+        include_screentime: Include AW screen-time lag/rolling features.
+            Set False for physiology targets to avoid gating the valid-row
+            span to AW's start date (2021-06) — substance/temporal/AR
+            features reach back to the target's own history. Since the final
+            row mask requires all features non-null, the screen-time block
+            otherwise drops every pre-AW day even when sleep data exists.
 
     Returns:
         (X, y) tuple where X is the feature matrix and y is the
@@ -261,11 +268,16 @@ def build_feature_frame(
         top_n=top_n_substances,
         window=substance_window,
     )
-    screentime_features = build_screentime_features(df, lag_days=lag_days, exclude_col=target_col)
     temporal_features = build_temporal_features(df)
     ar_features = build_autoregressive_features(df, target_col, lags=lag_days)
 
-    X = pd.concat([substance_features, screentime_features, temporal_features, ar_features], axis=1)
+    blocks = [substance_features, temporal_features, ar_features]
+    if include_screentime:
+        blocks.append(
+            build_screentime_features(df, lag_days=lag_days, exclude_col=target_col)
+        )
+
+    X = pd.concat(blocks, axis=1)
 
     # Target: next-day value (shift -1 so today's features predict tomorrow)
     y = df[target_col].shift(-1)

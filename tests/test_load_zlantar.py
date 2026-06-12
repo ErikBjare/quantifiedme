@@ -135,6 +135,7 @@ def test_load_transactions_df(sample_json: Path) -> None:
 def test_load_transactions_df_from_zip(sample_zip: Path) -> None:
     df = load_transactions_df(path=sample_zip)
     assert len(df) == len(SAMPLE_TRANSACTIONS)
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert str(df.index.tz) == "UTC"
 
 
@@ -154,6 +155,7 @@ def test_load_daily_df(sample_json: Path) -> None:
         "savings",
         "n_transactions",
     ]
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert str(df.index.tz) == "UTC"
     assert df.index.name == "date"
     # Two distinct days in the sample
@@ -187,6 +189,7 @@ def test_load_category_spending_df(sample_json: Path) -> None:
     df = load_category_spending_df(path=sample_json, freq="MS")
 
     assert isinstance(df, pd.DataFrame)
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert str(df.index.tz) == "UTC"
     assert df.index.name == "period"
     # One month in the sample

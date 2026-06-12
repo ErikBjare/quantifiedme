@@ -47,7 +47,7 @@ def _read_transactions(path: Path) -> list[dict]:
     if not path.exists():
         raise FileNotFoundError(f"Zlantar export not found at {path}")
 
-    if path.suffix == ".zip":
+    if path.suffix.lower() == ".zip":
         with zipfile.ZipFile(path) as zf:
             if _TRANSACTIONS_FILE not in zf.namelist():
                 raise ValueError(
@@ -108,7 +108,8 @@ def load_daily_df(path: Path | None = None) -> pd.DataFrame:
     Internal transfers and savings movements are excluded from income/expense/net.
     """
     df = load_transactions_df(path=path)
-    df = df.assign(day=pd.DatetimeIndex(df.index).floor("D"))
+    assert isinstance(df.index, pd.DatetimeIndex)
+    df = df.assign(day=df.index.floor("D"))
 
     def _sum_by_day(mask: pd.Series, sign: int) -> pd.Series:
         sub = df[mask]
@@ -146,8 +147,9 @@ def load_category_spending_df(
     Load expense spending broken down by main category over time.
 
     Returns a DataFrame indexed by period start (UTC), one column per main
-    category, with positive SEK spending magnitude per period. Only ``expense``
-    transactions are included.
+    category, with net SEK spend per period (purchases minus refunds). Only
+    ``expense`` transactions are included; a category can go negative in a
+    period if refunds there exceed purchases.
 
     Parameters
     ----------

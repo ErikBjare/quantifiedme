@@ -79,7 +79,9 @@ def iter_records(path: str | os.PathLike, tag: str) -> Iterator[dict[str, str]]:
             yield dict(elem.attrib)
             elem.clear()
             if root is not None:
-                del root[:]  # purge cleared child from parent; keeps root list bounded
+                del root[
+                    :
+                ]  # clear all root children (bounded; for flat XML only one is present here)
 
 
 def iter_sent_sms(path: str | os.PathLike) -> Iterator[dict[str, str]]:
@@ -138,7 +140,10 @@ def _epoch_ms_to_dt(date_ms: str | None, tz: timezone | None) -> datetime | None
     # tz=None is intentional: it selects system local time, which on erb-m2 is
     # Erik's timezone ("which day of Erik's life"). Callers pass an explicit tz
     # for deterministic behavior; tests always do.
-    return datetime.fromtimestamp(seconds, tz=tz)
+    try:
+        return datetime.fromtimestamp(seconds, tz=tz)
+    except (OverflowError, OSError):
+        return None
 
 
 def latest_file(comms_dir: str | os.PathLike, prefix: str) -> Path | None:
@@ -149,5 +154,5 @@ def latest_file(comms_dir: str | os.PathLike, prefix: str) -> Path | None:
     ``~`` in ``comms_dir`` is expanded.
     """
     base = Path(os.path.expanduser(str(comms_dir)))
-    matches = sorted(glob.glob(str(base / f"{prefix}*.xml")))
+    matches = sorted(glob.glob(str(base / f"{glob.escape(prefix)}*.xml")))
     return Path(matches[-1]) if matches else None

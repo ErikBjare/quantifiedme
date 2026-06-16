@@ -29,6 +29,8 @@ Types of data supported:
    - Includes a calendar plot.
    - Easy to adapt to any other habit app that supports CSV export
  - Drug consumption (from QSlang)
+ - Communication data (calls/SMS from the "SMS Backup & Restore" Android app)
+   - Low-level streaming XML reader in `src/quantifiedme/load/comms_backup.py`; consumers apply their own privacy filtering/aggregation on top.
 
 Can load data from:
 
@@ -36,6 +38,7 @@ Can load data from:
  - Fitbit
  - Whoop
  - Oura
+ - SMS Backup & Restore (calls/SMS — see `src/quantifiedme/load/comms_backup.py`)
  - EEG devices (WIP)
  - ...and more (see `src/quantifiedme/load/`)
 

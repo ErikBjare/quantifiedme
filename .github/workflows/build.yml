@@ -150,15 +150,20 @@ jobs:
 
     - name: Cache poetry dependencies
       uses: actions/cache@v4
-      with:
-        path: ${{ steps.poetry-cache.outputs.dir }}
+      env:
         # `setup-python`'s built-in `cache: poetry` has no manual cache-busting
         # lever, so a corrupted cache (see #29) can only be cleared by a repo
-        # admin via Settings > Actions > Caches. Bump the `v1` suffix below to
-        # force a fresh cache without needing that access.
-        key: poetry-${{ runner.os }}-${{ matrix.python-version }}-v1-${{ hashFiles('poetry.lock') }}
+        # admin via Settings > Actions > Caches. Bump this to force a fresh
+        # cache without needing that access. A single source of truth (rather
+        # than repeating the suffix in `key` and `restore-keys` separately)
+        # means bumping it can't accidentally desync the two and fall back to
+        # a stale, possibly-corrupted cache on a partial restore-keys match.
+        POETRY_CACHE_VERSION: v1
+      with:
+        path: ${{ steps.poetry-cache.outputs.dir }}
+        key: poetry-${{ runner.os }}-${{ matrix.python-version }}-${{ env.POETRY_CACHE_VERSION }}-${{ hashFiles('poetry.lock') }}
         restore-keys: |
-          poetry-${{ runner.os }}-${{ matrix.python-version }}-v1-
+          poetry-${{ runner.os }}-${{ matrix.python-version }}-${{ env.POETRY_CACHE_VERSION }}-
 
     - name: Install deps
       run: poetry install

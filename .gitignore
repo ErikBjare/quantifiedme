@@ -10,6 +10,7 @@ __pycache__
 config.toml
 .venv
 .env
+.env.*
 
 # editor-specific
 .vscode

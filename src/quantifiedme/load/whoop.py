@@ -1,7 +1,9 @@
 """
 Loads Whoop data.
 
-Supports two export formats:
+Prefers the live WHOOP API (see :mod:`.whoop_api`) when it has been authorized
+on this machine — file exports go stale the moment they're downloaded.
+Otherwise falls back to two file-export formats:
 
 - **Standard CSV export** (current Whoop dashboard export): flat directory with
   ``sleeps.csv``, ``workouts.csv``, ``physiological_cycles.csv``, and
@@ -10,7 +12,8 @@ Supports two export formats:
   subdirectory with ``sleeps.csv`` (different schema, with ``during`` JSON
   tuple), ``metrics*.csv`` granular per-minute HR/accel/skin temp.
 
-Format is auto-detected from directory contents.
+Format is auto-detected from directory contents. The journal loader is always
+file-based (the API does not expose journal entries).
 """
 
 from datetime import timedelta
@@ -384,6 +387,19 @@ def _load_sleep_gdpr(d: Path) -> pd.DataFrame:
 # ── Public API (format-dispatching) ───────────────────────────────────────────
 
 
+def _use_api() -> bool:
+    """Whether to source data from the WHOOP API instead of file exports.
+
+    True when the API has been authorized on this machine (token file exists).
+    API errors are deliberately not swallowed by falling back to file exports —
+    a stale export silently masquerading as fresh data is exactly the failure
+    mode the API loader exists to prevent.
+    """
+    from . import whoop_api
+
+    return whoop_api.has_auth()
+
+
 def load_heartrate_df() -> pd.DataFrame:
     """Load granular HR data. Only available for GDPR-format exports.
 
@@ -402,7 +418,11 @@ def load_heartrate_df() -> pd.DataFrame:
 
 
 def load_sleep_df() -> pd.DataFrame:
-    """Load daily sleep summary. Works for both export formats."""
+    """Load daily sleep summary. Works for the API and both export formats."""
+    if _use_api():
+        from . import whoop_api
+
+        return whoop_api.load_sleep_df()
     d = _whoop_dir()
     fmt = _detect_format(d)
     if fmt == "standard":
@@ -413,8 +433,12 @@ def load_sleep_df() -> pd.DataFrame:
 def load_cycles_df() -> pd.DataFrame:
     """Load daily physiological cycle summary (recovery, HRV, RHR, strain).
 
-    Only available in the standard export format.
+    Available from the API and the standard export format.
     """
+    if _use_api():
+        from . import whoop_api
+
+        return whoop_api.load_cycles_df()
     d = _whoop_dir()
     if _detect_format(d) != "standard":
         raise NotImplementedError(
@@ -424,7 +448,11 @@ def load_cycles_df() -> pd.DataFrame:
 
 
 def load_workouts_df() -> pd.DataFrame:
-    """Load workout events. Only available in the standard export format."""
+    """Load workout events. Available from the API and the standard export format."""
+    if _use_api():
+        from . import whoop_api
+
+        return whoop_api.load_workouts_df()
     d = _whoop_dir()
     if _detect_format(d) != "standard":
         raise NotImplementedError(

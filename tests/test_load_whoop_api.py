@@ -8,6 +8,7 @@ HTTP is mocked at the requests/module boundary.
 import json
 import time
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pytest
@@ -24,7 +25,7 @@ from quantifiedme.load.whoop_api import (
 
 # ── Fixture records (v2 schemas) ──────────────────────────────────────────────
 
-SLEEP_SCORED = {
+SLEEP_SCORED: dict[str, Any] = {
     "id": "ecfc6a15-4661-442f-a9a4-f160dd7afae8",
     "cycle_id": 93845,
     "user_id": 10129,
@@ -57,7 +58,7 @@ SLEEP_SCORED = {
     },
 }
 
-SLEEP_NAP = {
+SLEEP_NAP: dict[str, Any] = {
     **SLEEP_SCORED,
     "id": "nap-id",
     "nap": True,
@@ -65,7 +66,7 @@ SLEEP_NAP = {
     "end": "2026-05-10T11:45:00.000Z",
 }
 
-SLEEP_UNSCORED = {
+SLEEP_UNSCORED: dict[str, Any] = {
     "id": "pending-id",
     "cycle_id": 93846,
     "start": "2026-05-10T21:30:00.000Z",
@@ -75,7 +76,7 @@ SLEEP_UNSCORED = {
     "score_state": "PENDING_SCORE",
 }
 
-CYCLE = {
+CYCLE: dict[str, Any] = {
     "id": 93845,
     "user_id": 10129,
     "start": "2026-05-09T21:00:00.000Z",
@@ -90,7 +91,7 @@ CYCLE = {
     },
 }
 
-RECOVERY = {
+RECOVERY: dict[str, Any] = {
     "cycle_id": 93845,
     "sleep_id": "ecfc6a15-4661-442f-a9a4-f160dd7afae8",
     "user_id": 10129,
@@ -106,7 +107,7 @@ RECOVERY = {
     },
 }
 
-WORKOUT = {
+WORKOUT: dict[str, Any] = {
     "id": "workout-uuid",
     "user_id": 10129,
     "start": "2026-05-10T16:00:00.000Z",
@@ -152,6 +153,7 @@ def test_sleeps_to_df() -> None:
     # Nap and unscored rows excluded
     assert len(df) == 1
     assert df.index.name == "timestamp"
+    assert isinstance(df.index, pd.DatetimeIndex)
     assert str(df.index.tz) == "UTC"
     # Wake date: 05:00 UTC + 02:00 = 07:00 local on 2026-05-10
     assert df.index[0] == pd.Timestamp("2026-05-10", tz="UTC")

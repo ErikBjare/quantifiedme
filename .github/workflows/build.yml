@@ -143,7 +143,27 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-        cache: 'poetry'
+
+    - name: Get poetry cache dir
+      id: poetry-cache
+      run: echo "dir=$(poetry config cache-dir)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache poetry dependencies
+      uses: actions/cache@v4
+      env:
+        # `setup-python`'s built-in `cache: poetry` has no manual cache-busting
+        # lever, so a corrupted cache (see #29) can only be cleared by a repo
+        # admin via Settings > Actions > Caches. Bump this to force a fresh
+        # cache without needing that access. A single source of truth (rather
+        # than repeating the suffix in `key` and `restore-keys` separately)
+        # means bumping it can't accidentally desync the two and fall back to
+        # a stale, possibly-corrupted cache on a partial restore-keys match.
+        POETRY_CACHE_VERSION: v1
+      with:
+        path: ${{ steps.poetry-cache.outputs.dir }}
+        key: poetry-${{ runner.os }}-${{ matrix.python-version }}-${{ env.POETRY_CACHE_VERSION }}-${{ hashFiles('poetry.lock') }}
+        restore-keys: |
+          poetry-${{ runner.os }}-${{ matrix.python-version }}-${{ env.POETRY_CACHE_VERSION }}-
 
     - name: Install deps
       run: poetry install

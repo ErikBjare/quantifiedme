@@ -246,6 +246,35 @@ def test_workouts_to_df() -> None:
     assert row["energy_kcal"] == pytest.approx(520, abs=1)
 
 
+def test_zero_kilojoule_preserved() -> None:
+    """kJ=0 is a real measurement, not missing data (Greptile P1)."""
+    cycle = {**CYCLE, "score": {**CYCLE["score"], "kilojoule": 0}}
+    df = _cycles_to_df([cycle], [RECOVERY], [SLEEP_SCORED])
+    assert df.iloc[0]["energy_kcal"] == 0
+
+    workout = {**WORKOUT, "score": {**WORKOUT["score"], "kilojoule": 0}}
+    df = _workouts_to_df([workout])
+    assert df.iloc[0]["energy_kcal"] == 0
+
+
+def test_missing_debt_stays_missing() -> None:
+    """A sleep score without sleep_needed must not fabricate zero debt (Greptile P2)."""
+    score = {k: v for k, v in SLEEP_SCORED["score"].items() if k != "sleep_needed"}
+    df = _sleeps_to_df([{**SLEEP_SCORED, "score": score}])
+    assert pd.isna(df.iloc[0]["debt"])
+
+
+def test_empty_daily_dfs_keep_schema() -> None:
+    """All-filtered-out results keep columns, like the CSV loaders (Greptile P1)."""
+    sleep_df = _sleeps_to_df([SLEEP_NAP])
+    assert sleep_df.empty
+    assert "score" in sleep_df.columns and "duration" in sleep_df.columns
+
+    cycles_df = _cycles_to_df([], [], [])
+    assert cycles_df.empty
+    assert "recovery" in cycles_df.columns and "hrv" in cycles_df.columns
+
+
 def test_workouts_to_df_empty() -> None:
     df = _workouts_to_df([])
     assert df.empty

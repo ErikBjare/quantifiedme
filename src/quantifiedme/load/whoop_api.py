@@ -69,6 +69,11 @@ FETCH_OVERLAP = timedelta(days=14)
 KCAL_PER_KILOJOULE = 1 / 4.184
 
 
+def _kcal(kilojoule: float | None) -> float | None:
+    """kJ → kcal, preserving None (0 kJ is a real value, not missing)."""
+    return kilojoule * KCAL_PER_KILOJOULE if kilojoule is not None else None
+
+
 # ── Credentials & token persistence ───────────────────────────────────────────
 
 
@@ -356,6 +361,7 @@ def _sleeps_to_df(records: list[dict[str, Any]]) -> pd.DataFrame:
         score = r["score"]
         stages = score["stage_summary"]
         ms = pd.to_timedelta
+        debt_milli = (score.get("sleep_needed") or {}).get("need_from_sleep_debt_milli")
         asleep = (
             stages["total_light_sleep_time_milli"]
             + stages["total_slow_wave_sleep_time_milli"]
@@ -369,10 +375,7 @@ def _sleeps_to_df(records: list[dict[str, Any]]) -> pd.DataFrame:
                 "time_in_bed": ms(stages["total_in_bed_time_milli"], unit="ms"),
                 "efficiency": score.get("sleep_efficiency_percentage"),
                 "consistency": score.get("sleep_consistency_percentage"),
-                "debt": (score.get("sleep_needed") or {}).get(
-                    "need_from_sleep_debt_milli", 0
-                )
-                / 60_000,
+                "debt": (debt_milli / 60_000 if debt_milli is not None else None),
                 "respiratory_rate": score.get("respiratory_rate"),
                 "rem": ms(stages["total_rem_sleep_time_milli"], unit="ms"),
                 "deep": ms(stages["total_slow_wave_sleep_time_milli"], unit="ms"),
@@ -380,7 +383,7 @@ def _sleeps_to_df(records: list[dict[str, Any]]) -> pd.DataFrame:
                 "awake": ms(stages["total_awake_time_milli"], unit="ms"),
             }
         )
-    return _to_daily_df(rows)
+    return _to_daily_df(rows, SLEEP_COLUMNS)
 
 
 def _cycles_to_df(
@@ -410,7 +413,6 @@ def _cycles_to_df(
             date = _local_date(r["created_at"], "Z")
 
         cycle_score = (cycle_by_id.get(r["cycle_id"]) or {}).get("score") or {}
-        kilojoule = cycle_score.get("kilojoule")
         rows.append(
             {
                 "timestamp": date,
@@ -420,10 +422,10 @@ def _cycles_to_df(
                 "skin_temp": score.get("skin_temp_celsius"),
                 "spo2": score.get("spo2_percentage"),
                 "strain": cycle_score.get("strain"),
-                "energy_kcal": kilojoule * KCAL_PER_KILOJOULE if kilojoule else None,
+                "energy_kcal": _kcal(cycle_score.get("kilojoule")),
             }
         )
-    return _to_daily_df(rows)
+    return _to_daily_df(rows, CYCLE_COLUMNS)
 
 
 def _workouts_to_df(records: list[dict[str, Any]]) -> pd.DataFrame:
@@ -433,7 +435,6 @@ def _workouts_to_df(records: list[dict[str, Any]]) -> pd.DataFrame:
         score = r.get("score") or {}
         start = pd.Timestamp(r["start"])
         end = pd.Timestamp(r["end"])
-        kilojoule = score.get("kilojoule")
         rows.append(
             {
                 "start": start,
@@ -441,7 +442,7 @@ def _workouts_to_df(records: list[dict[str, Any]]) -> pd.DataFrame:
                 "duration": end - start,
                 "activity": r.get("sport_name"),
                 "strain": score.get("strain"),
-                "energy_kcal": kilojoule * KCAL_PER_KILOJOULE if kilojoule else None,
+                "energy_kcal": _kcal(score.get("kilojoule")),
                 "max_hr": score.get("max_heart_rate"),
                 "avg_hr": score.get("average_heart_rate"),
             }
@@ -461,10 +462,37 @@ def _workouts_to_df(records: list[dict[str, Any]]) -> pd.DataFrame:
     return pd.DataFrame(rows)[columns].sort_values("start").reset_index(drop=True)
 
 
-def _to_daily_df(rows: list[dict[str, Any]]) -> pd.DataFrame:
-    df = pd.DataFrame(rows)
-    if df.empty:
+SLEEP_COLUMNS = [
+    "score",
+    "duration",
+    "time_in_bed",
+    "efficiency",
+    "consistency",
+    "debt",
+    "respiratory_rate",
+    "rem",
+    "deep",
+    "light",
+    "awake",
+]
+CYCLE_COLUMNS = [
+    "recovery",
+    "resting_hr",
+    "hrv",
+    "skin_temp",
+    "spo2",
+    "strain",
+    "energy_kcal",
+]
+
+
+def _to_daily_df(rows: list[dict[str, Any]], columns: list[str]) -> pd.DataFrame:
+    if not rows:
+        # Preserve the schema on empty results, like the CSV loaders do
+        df = pd.DataFrame(columns=columns)
+        df.index = pd.DatetimeIndex([], tz="UTC", name="timestamp")
         return df
+    df = pd.DataFrame(rows)
     # Multiple records can map to the same wake date (e.g. split sleeps);
     # keep the last (most recently scored)
     df = df.groupby("timestamp").last()

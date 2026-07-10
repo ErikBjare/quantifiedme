@@ -30,6 +30,13 @@ from quantifiedme.load.whoop import (
 has_whoop_config = load_config().get("data", {}).get("whoop", False)
 
 
+@pytest.fixture(autouse=True)
+def no_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Force file-based dispatch: these tests cover the export-file formats,
+    and must not flip to the API path on machines with a real Whoop token."""
+    monkeypatch.setattr(whoop, "_use_api", lambda: False)
+
+
 # ── Fixture CSV content (matches Whoop standard export schemas, 2026-05) ──────
 
 

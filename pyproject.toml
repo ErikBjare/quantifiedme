@@ -22,6 +22,7 @@ numpy = "*"
 scipy = ">=1.10"
 #bottleneck = "1.2.3"
 pandas = "*"
+requests = "*"
 matplotlib = "*"
 calplot = "^0.1"  # fork of calmap
 joblib = "*"

@@ -36,7 +36,7 @@ Can load data from:
 
  - ActivityWatch
  - Fitbit
- - Whoop
+ - Whoop (live API via OAuth — see `src/quantifiedme/load/whoop_api.py` — or CSV/GDPR exports)
  - Oura
  - SMS Backup & Restore (calls/SMS — see `src/quantifiedme/load/comms_backup.py`)
  - EEG devices (WIP)

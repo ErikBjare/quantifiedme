@@ -12,6 +12,7 @@ categories = "./categories.example.toml"
 #habitbull = "~/Downloads/HabitBullData.csv"
 #location = "~/location"
 #oura = "~/Downloads/oura_2020-02-27T09-07-47.json"
+#whoop = "~/Downloads/whoop-export"  # CSV/GDPR export dir; the live Whoop API (see load/whoop_api.py) needs no config entry and takes precedence once authorized
 #zlantar = "~/Downloads/zlantar-export.zip"  # personal finance export (.zip, .json, or dir)
 
 [data.activitywatch]

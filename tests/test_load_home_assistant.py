@@ -360,6 +360,44 @@ def test_load_daily_df_from_sqlite(tmp_path: Path) -> None:
     assert bool(df["sauna"].iloc[0]) is True
 
 
+def test_aggregate_daily_features_index_union() -> None:
+    """Second feature with longer date range must not lose its extra days (P1 fix)."""
+    # sauna: 1 day; co2: 3 days — result must have 3 rows, not 1
+    rows = [
+        ("sensor.sauna_probe_temperature", 80.0, "2024-01-01T12:00:00+00:00"),
+        ("sensor.s1_pro_multi_sense_e8b4cc_scd40_co2_concentration", 800.0, "2024-01-01T08:00:00+00:00"),
+        ("sensor.s1_pro_multi_sense_e8b4cc_scd40_co2_concentration", 900.0, "2024-01-02T08:00:00+00:00"),
+        ("sensor.s1_pro_multi_sense_e8b4cc_scd40_co2_concentration", 950.0, "2024-01-03T08:00:00+00:00"),
+    ]
+    df = pd.DataFrame(rows, columns=["entity_id", "state", "ts"])
+    df["timestamp"] = pd.to_datetime(df["ts"], utc=True)
+    df = df.drop(columns=["ts"]).set_index("timestamp")
+
+    result = aggregate_daily_features(df)
+    assert len(result) == 3, "CO2 days 2 and 3 must not be dropped when sauna ends on day 1"
+    assert pd.isna(result.loc["2024-01-02", "sauna"])
+    assert pd.isna(result.loc["2024-01-03", "sauna"])
+    assert result.loc["2024-01-02", "bedroom_co2"] == pytest.approx(900.0)
+
+
+def test_aggregate_daily_features_sum_threshold_empty_day_is_nan() -> None:
+    """Empty day with agg='sum' must stay NaN (not coerced to False via zero-sum)."""
+    rows = [
+        ("sensor.steps", 8500.0, "2024-01-01T12:00:00+00:00"),
+        # day 2: no readings at all
+        ("sensor.steps", 12000.0, "2024-01-03T12:00:00+00:00"),
+    ]
+    df = pd.DataFrame(rows, columns=["entity_id", "state", "ts"])
+    df["timestamp"] = pd.to_datetime(df["ts"], utc=True)
+    df = df.drop(columns=["ts"]).set_index("timestamp")
+
+    features = [DailyFeature(name="active", entity_id="sensor.steps", agg="sum", threshold=10000.0)]
+    result = aggregate_daily_features(df, features)
+    assert bool(result.loc["2024-01-01", "active"]) is False   # 8500 < 10000
+    assert pd.isna(result.loc["2024-01-02", "active"]), "empty day must be NaN, not False"
+    assert bool(result.loc["2024-01-03", "active"]) is True    # 12000 > 10000
+
+
 def test_create_fake_sensor_df() -> None:
     df = create_fake_sensor_df(start="2024-01-01", end="2024-01-07")
 

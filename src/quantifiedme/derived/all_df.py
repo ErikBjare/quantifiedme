@@ -1,6 +1,7 @@
 import itertools
 import logging
 import os
+import sqlite3
 from datetime import (
     date,
     datetime,
@@ -13,6 +14,7 @@ import click
 import pandas as pd
 from aw_core import Event
 
+from ..config import load_config
 from ..load.home_assistant import load_daily_df as load_ha_daily_df
 from ..load.location import load_daily_df as load_location_daily_df
 from ..load.qslang import load_daily_df as load_drugs_df
@@ -163,8 +165,11 @@ def load_all_df(
         # Optional source: only present when data.home_assistant is configured and
         # the local HA SQLite DB exists. Skipped cleanly otherwise.
         try:
-            df_ha = load_ha_daily_df()
-        except (FileNotFoundError, KeyError) as e:
+            _date_offset_hours = load_config().get("me", {}).get(
+                "date_offset_hours", 0
+            )
+            df_ha = load_ha_daily_df(date_offset_hours=_date_offset_hours)
+        except (FileNotFoundError, KeyError, sqlite3.Error) as e:
             logger.warning(f"Skipping home_assistant source: {e}")
         else:
             if not df_ha.empty:

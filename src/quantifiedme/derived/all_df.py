@@ -8,6 +8,7 @@ from datetime import (
     timedelta,
     timezone,
 )
+from pathlib import Path
 from typing import Literal, TypeAlias
 
 import click
@@ -16,6 +17,7 @@ from aw_core import Event
 
 from ..config import load_config
 from ..load.home_assistant import load_daily_df as load_ha_daily_df
+from ..load.home_assistant import load_daily_df_from_statistics as load_ha_statistics_daily_df
 from ..load.location import load_daily_df as load_location_daily_df
 from ..load.qslang import load_daily_df as load_drugs_df
 from ..load.whoop import load_cycles_df as load_whoop_cycles_df
@@ -162,13 +164,24 @@ def load_all_df(
 
     if "home_assistant" not in ignore:
         print("\n# Adding Home Assistant behaviors (sauna, CO2)")
-        # Optional source: only present when data.home_assistant is configured and
-        # the local HA SQLite DB exists. Skipped cleanly otherwise.
+        # Prefer long-term statistics export (full history) over the SQLite states
+        # table (purged after ~10 days). Fall back to SQLite when no export path is set.
         try:
-            _date_offset_hours = load_config().get("me", {}).get(
-                "date_offset_hours", 0
-            )
-            df_ha = load_ha_daily_df(date_offset_hours=_date_offset_hours)
+            config = load_config()
+            ha_stats_path_str = config.get("data", {}).get("ha_statistics_export")
+        except Exception:
+            ha_stats_path_str = None
+            config = {}
+        try:
+            if ha_stats_path_str:
+                local_tz = config.get("data", {}).get("ha_local_tz")
+                df_ha = load_ha_statistics_daily_df(
+                    Path(ha_stats_path_str).expanduser(),
+                    local_tz=local_tz or None,
+                )
+            else:
+                _date_offset_hours = config.get("me", {}).get("date_offset_hours", 0)
+                df_ha = load_ha_daily_df(date_offset_hours=_date_offset_hours)
         except (FileNotFoundError, KeyError, sqlite3.Error) as e:
             logger.warning(f"Skipping home_assistant source: {e}")
         else:

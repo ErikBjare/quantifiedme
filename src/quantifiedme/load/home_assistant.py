@@ -323,12 +323,11 @@ def aggregate_daily_features(
                 f"Expected one of {_VALID_AGGS}"
             )
 
-    offset = timedelta(hours=date_offset_hours)
-    series_list: list[pd.Series] = []
+    series: dict[str, pd.Series] = {}
     for feat in features:
         readings = pd.Series(df.loc[df["entity_id"] == feat.entity_id, "state"])
         if readings.empty:
-            series_list.append(pd.Series(name=feat.name, dtype="float64"))
+            series[feat.name] = pd.Series(dtype="float64")
             continue
         if date_offset_hours:
             readings = readings.copy()
@@ -341,11 +340,11 @@ def aggregate_daily_features(
         if feat.threshold is not None:
             # Boolean behavior; keep NaN where the day had no readings (not False).
             daily = daily.gt(feat.threshold).where(daily.notna())  # type: ignore[arg-type]
-        series_list.append(daily.rename(feat.name))
+        series[feat.name] = daily
 
-    # Use concat(axis=1) so indices are unioned — sequential column assignment would
-    # reindex later features to the first feature's (potentially shorter) date range.
-    result = pd.concat(series_list, axis=1) if series_list else pd.DataFrame()
+    # Use concat so each feature's full date range is preserved (column assignment
+    # would silently drop dates not present in the first feature's index).
+    result = pd.concat(series, axis=1) if series else pd.DataFrame()
     if not result.empty:
         result.index = pd.DatetimeIndex(pd.DatetimeIndex(result.index).date)
     result.index.name = "date"
@@ -389,7 +388,9 @@ def _parse_statistics_start(value: int | float | str) -> pd.Timestamp:
     return ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
 
 
-def load_statistics_export(path: Path) -> dict[str, pd.DataFrame]:
+def load_statistics_export(
+    path: Path, local_tz: str | None = None
+) -> dict[str, pd.DataFrame]:
     """Read a long-term statistics export produced by ``ha.py statistics --json``.
 
     Unlike the ``states`` table (purged after ~10 days), HA long-term statistics are
@@ -403,10 +404,15 @@ def load_statistics_export(path: Path) -> dict[str, pd.DataFrame]:
 
     Args:
         path: Path to the JSON export file.
+        local_tz: Optional timezone name (e.g. ``"Europe/Stockholm"``) used to
+                  convert UTC ``start`` timestamps to local calendar dates before
+                  grouping. Without this, a session ending after local midnight but
+                  before UTC midnight is attributed to the wrong calendar date. Defaults
+                  to UTC (prior behaviour).
 
     Returns:
-        Mapping from entity_id to a DataFrame indexed by UTC-normalized date (midnight)
-        with the statistics columns present in the export. Entities with no rows yield
+        Mapping from entity_id to a DataFrame indexed by local calendar date with
+        the statistics columns present in the export. Entities with no rows yield
         an empty DataFrame.
 
     Raises:
@@ -427,7 +433,11 @@ def load_statistics_export(path: Path) -> dict[str, pd.DataFrame]:
         dates = df["start"].map(_parse_statistics_start)
         stat_cols = [c for c in ("mean", "min", "max", "sum") if c in df.columns]
         df = df[stat_cols].copy()
-        df.index = pd.DatetimeIndex(pd.DatetimeIndex(dates).date)
+        if local_tz is not None:
+            local_dates = pd.DatetimeIndex(dates).tz_convert(local_tz)
+            df.index = pd.DatetimeIndex(local_dates.date)
+        else:
+            df.index = pd.DatetimeIndex(pd.DatetimeIndex(dates).date)
         df.index.name = "date"
         out[entity_id] = df.sort_index()
     return out
@@ -465,19 +475,22 @@ def aggregate_statistics_features(
                 f"Expected one of {_VALID_AGGS}"
             )
 
-    result = pd.DataFrame()
+    series: dict[str, pd.Series] = {}
     for feat in features:
         entity_df = stats.get(feat.entity_id)
         stat_col = _AGG_TO_STAT_COLUMN[feat.agg]
         if entity_df is None or entity_df.empty or stat_col not in entity_df.columns:
-            result[feat.name] = pd.Series(dtype="float64")
+            series[feat.name] = pd.Series(dtype="float64")
             continue
         daily = entity_df[stat_col]
         if feat.threshold is not None:
             # Boolean behavior; keep NaN where the day had no statistics row (not False).
             daily = daily.gt(feat.threshold).where(daily.notna())
-        result[feat.name] = daily
+        series[feat.name] = daily
 
+    # Use concat so each feature's full date range is preserved (column assignment
+    # would silently drop dates not present in the first feature's index).
+    result = pd.concat(series, axis=1) if series else pd.DataFrame()
     result.index.name = "date"
     return result
 
@@ -485,6 +498,7 @@ def aggregate_statistics_features(
 def load_daily_df_from_statistics(
     path: Path,
     features: list[DailyFeature] | None = None,
+    local_tz: str | None = None,
 ) -> pd.DataFrame:
     """Load daily HA behavior features from a long-term statistics export.
 
@@ -492,8 +506,14 @@ def load_daily_df_from_statistics(
     :func:`aggregate_statistics_features`. Use this (not :func:`load_daily_df`) when you
     need the full retained history rather than the ~10 days the ``states`` table keeps —
     e.g. the multi-year ``ha:sauna`` series for the behaviors-impact decorrelation.
+
+    Args:
+        path: Path to the JSON statistics export.
+        features: Feature specs. Defaults to :data:`DEFAULT_DAILY_FEATURES`.
+        local_tz: Optional timezone for correct local-date attribution (see
+                  :func:`load_statistics_export`).
     """
-    stats = load_statistics_export(Path(path))
+    stats = load_statistics_export(Path(path), local_tz=local_tz)
     return aggregate_statistics_features(stats, features)
 
 

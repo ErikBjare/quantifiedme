@@ -1,5 +1,6 @@
 """Tests for the Home Assistant environmental sensor data loader."""
 
+import json
 import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -10,10 +11,13 @@ import pytest
 from quantifiedme.load.home_assistant import (
     DailyFeature,
     aggregate_daily_features,
+    aggregate_statistics_features,
     create_fake_sensor_df,
     load_daily_df,
+    load_daily_df_from_statistics,
     load_sensor_df,
     load_sensor_df_api,
+    load_statistics_export,
 )
 
 
@@ -396,6 +400,81 @@ def test_aggregate_daily_features_sum_threshold_empty_day_is_nan() -> None:
     assert bool(result.loc["2024-01-01", "active"]) is False   # 8500 < 10000
     assert pd.isna(result.loc["2024-01-02", "active"]), "empty day must be NaN, not False"
     assert bool(result.loc["2024-01-03", "active"]) is True    # 12000 > 10000
+
+
+def _write_statistics_export(path: Path) -> Path:
+    """Write a ha.py-style statistics --json export: epoch-ms start + mean/min/max."""
+    export = {
+        "sensor.sauna_probe_temperature": [
+            # 2024-01-01: hot session (max 82) ; 2024-01-02: never heated (max 22)
+            {"start": 1704067200000, "mean": 40.0, "min": 20.0, "max": 82.0},
+            {"start": 1704153600000, "mean": 20.5, "min": 19.0, "max": 22.0},
+        ],
+        "sensor.s1_pro_multi_sense_e8b4cc_scd40_co2_concentration": [
+            # ISO-string start form; day 1 only
+            {"start": "2024-01-01T00:00:00+00:00", "mean": 700.0, "min": 500.0, "max": 900.0},
+        ],
+    }
+    path.write_text(json.dumps(export))
+    return path
+
+
+def test_load_statistics_export_parses_both_start_formats(tmp_path: Path) -> None:
+    stats = load_statistics_export(_write_statistics_export(tmp_path / "stats.json"))
+    sauna = stats["sensor.sauna_probe_temperature"]
+    assert list(sauna.columns) == ["mean", "min", "max"]
+    assert sauna.index.name == "date"
+    assert sauna.loc["2024-01-01", "max"] == 82.0
+    # ISO-string start parsed to the same date-normalized index
+    co2 = stats["sensor.s1_pro_multi_sense_e8b4cc_scd40_co2_concentration"]
+    assert co2.loc["2024-01-01", "mean"] == 700.0
+
+
+def test_load_statistics_export_missing_file(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError):
+        load_statistics_export(tmp_path / "nonexistent.json")
+
+
+def test_aggregate_statistics_features_selects_agg_column(tmp_path: Path) -> None:
+    stats = load_statistics_export(_write_statistics_export(tmp_path / "stats.json"))
+    df = aggregate_statistics_features(stats)
+    # sauna: agg=max, threshold 60 → day1 True (82), day2 False (22)
+    assert bool(df.loc["2024-01-01", "sauna"]) is True
+    assert bool(df.loc["2024-01-02", "sauna"]) is False
+    # bedroom_co2: agg=mean → picks the mean column
+    assert df.loc["2024-01-01", "bedroom_co2"] == pytest.approx(700.0)
+
+
+def test_aggregate_statistics_features_missing_day_is_nan_not_false(tmp_path: Path) -> None:
+    stats = load_statistics_export(_write_statistics_export(tmp_path / "stats.json"))
+    df = aggregate_statistics_features(stats)
+    # CO2 has no day-2 row → NaN, never a fabricated value
+    assert pd.isna(df.loc["2024-01-02", "bedroom_co2"])
+
+
+def test_aggregate_statistics_features_absent_sensor_all_nan(tmp_path: Path) -> None:
+    stats = load_statistics_export(_write_statistics_export(tmp_path / "stats.json"))
+    features = [DailyFeature(name="never", entity_id="sensor.does_not_exist", agg="mean")]
+    df = aggregate_statistics_features(stats, features=features)
+    assert "never" in df.columns
+    assert df["never"].isna().all()
+
+
+def test_aggregate_statistics_features_rejects_bad_agg(tmp_path: Path) -> None:
+    stats = load_statistics_export(_write_statistics_export(tmp_path / "stats.json"))
+    features = [
+        DailyFeature(name="x", entity_id="sensor.sauna_probe_temperature", agg="median")
+    ]
+    with pytest.raises(ValueError, match="Unsupported agg"):
+        aggregate_statistics_features(stats, features=features)
+
+
+def test_load_daily_df_from_statistics(tmp_path: Path) -> None:
+    """End-to-end: export file → daily feature df with the real 60 °C sauna threshold."""
+    path = _write_statistics_export(tmp_path / "stats.json")
+    df = load_daily_df_from_statistics(path)
+    assert "sauna" in df.columns
+    assert bool(df.loc["2024-01-01", "sauna"]) is True
 
 
 def test_create_fake_sensor_df() -> None:

@@ -32,9 +32,9 @@ def test_aggregate_daily_sums_per_day() -> None:
     assert row0["clicks"] == 7
     assert row0["deltaX"] == 40  # 50 + (-10)
     assert row0["deltaY"] == -10  # -30 + 20
-    # sign-agnostic derived magnitudes
-    assert row0["mouse_move"] == 50  # |40| + |-10|
-    assert row0["scroll"] == 7  # |3| + |-4|
+    # sign-agnostic magnitudes: per-event abs summed, not sum-then-abs
+    assert row0["mouse_move"] == 110  # (|50|+|-30|) + (|-10|+|20|) = 80+30
+    assert row0["scroll"] == 15  # (|0|+|-8|) + (|3|+|4|) = 8+7
 
 
 def test_aggregate_daily_empty_has_expected_columns() -> None:

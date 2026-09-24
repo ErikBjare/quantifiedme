@@ -110,12 +110,13 @@ def aggregate_daily(events: list[Event]) -> pd.DataFrame:
     rows = [{k: float(e.data.get(k, 0) or 0) for k in COUNTER_KEYS} for e in events]
     df = pd.DataFrame(rows)
     df["date"] = pd.DatetimeIndex([e.timestamp for e in events]).date
+
+    # Per-event abs before groupby — opposing movements must not cancel before summing.
+    df["mouse_move"] = df["deltaX"].abs() + df["deltaY"].abs()
+    df["scroll"] = df["scrollX"].abs() + df["scrollY"].abs()
+
     daily = df.groupby("date").sum()
     daily.index = pd.DatetimeIndex(daily.index, name="date")
-
-    # Derived, sign-agnostic magnitudes (raw deltas can be negative).
-    daily["mouse_move"] = daily["deltaX"].abs() + daily["deltaY"].abs()
-    daily["scroll"] = daily["scrollX"].abs() + daily["scrollY"].abs()
     return daily
 
 

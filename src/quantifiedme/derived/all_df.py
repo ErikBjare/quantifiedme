@@ -13,6 +13,7 @@ import click
 import pandas as pd
 from aw_core import Event
 
+from ..load.aw_input import load_daily_df as load_input_daily_df
 from ..load.location import load_daily_df as load_location_daily_df
 from ..load.qslang import load_daily_df as load_drugs_df
 from ..load.whoop import load_cycles_df as load_whoop_cycles_df
@@ -25,7 +26,7 @@ from .sleep import load_sleep_df
 logger = logging.getLogger(__name__)
 
 Sources = Literal[
-    "screentime", "heartrate", "drugs", "location", "sleep", "journal", "cycles"
+    "screentime", "heartrate", "drugs", "location", "sleep", "journal", "cycles", "input"
 ]
 ExerciseSources = Literal["workouts", "hevy", "steps"]
 
@@ -57,6 +58,19 @@ def load_all_df(
         # df_time = df_time[["Work", "Media", "ActivityWatch"]]
         df = join(df, df_time.add_prefix("time:"))
         print(f"Range: {min(df.index)}/{max(df.index)}")
+
+    if "input" not in ignore:
+        print("\n# Adding input (aw-watcher-input intensity)")
+        try:
+            df_input = load_input_daily_df(since=since)
+        except (FileNotFoundError, NotImplementedError, KeyError) as e:
+            # Optional source: aw-watcher-input may not run on every host, and
+            # the config may lack a `data.activitywatch` entry entirely.
+            logger.warning(f"Skipping input source: {e}")
+        else:
+            if not df_input.empty:
+                df_input.index = pd.DatetimeIndex(df_input.index.date)  # type: ignore
+                df = join(df, df_input.add_prefix("input:"))
 
     if "heartrate" not in ignore:
         print("\n# Adding heartrate")

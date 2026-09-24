@@ -8,7 +8,10 @@ import pandas as pd
 import pytest
 
 from quantifiedme.load.home_assistant import (
+    DailyFeature,
+    aggregate_daily_features,
     create_fake_sensor_df,
+    load_daily_df,
     load_sensor_df,
     load_sensor_df_api,
 )
@@ -220,7 +223,9 @@ def test_load_sensor_df_api_with_units() -> None:
 
 def test_load_sensor_df_api_sorted() -> None:
     with patch("requests.get", return_value=_make_api_mock(HA_API_RESPONSE)):
-        df = load_sensor_df_api(url="http://homeassistant.local:8123", token="test-token")
+        df = load_sensor_df_api(
+            url="http://homeassistant.local:8123", token="test-token"
+        )
 
     assert df.index.is_monotonic_increasing
 
@@ -241,7 +246,9 @@ def test_load_sensor_df_api_empty_entity_ids() -> None:
 
 def test_load_sensor_df_api_empty_response() -> None:
     with patch("requests.get", return_value=_make_api_mock([])):
-        df = load_sensor_df_api(url="http://homeassistant.local:8123", token="test-token")
+        df = load_sensor_df_api(
+            url="http://homeassistant.local:8123", token="test-token"
+        )
 
     assert len(df) == 0
     assert isinstance(df.index, pd.DatetimeIndex)
@@ -256,6 +263,101 @@ def test_load_sensor_df_api_http_error() -> None:
     with patch("requests.get", return_value=mock_response):
         with pytest.raises(requests.HTTPError):
             load_sensor_df_api(url="http://homeassistant.local:8123", token="bad-token")
+
+
+def _sauna_readings() -> pd.DataFrame:
+    """Long-format readings: day 1 has a sauna session (max 82 °C), day 2 does not (max 22 °C)."""
+    rows = [
+        # 2024-01-01: idle then a hot session
+        ("sensor.sauna_probe_temperature", 20.0, "2024-01-01T08:00:00+00:00"),
+        ("sensor.sauna_probe_temperature", 82.0, "2024-01-01T18:00:00+00:00"),
+        ("sensor.sauna_probe_temperature", 65.0, "2024-01-01T19:00:00+00:00"),
+        # 2024-01-02: never heated
+        ("sensor.sauna_probe_temperature", 19.0, "2024-01-02T08:00:00+00:00"),
+        ("sensor.sauna_probe_temperature", 22.0, "2024-01-02T18:00:00+00:00"),
+        # CO2 readings on day 1 only
+        (
+            "sensor.s1_pro_multi_sense_e8b4cc_scd40_co2_concentration",
+            500.0,
+            "2024-01-01T08:00:00+00:00",
+        ),
+        (
+            "sensor.s1_pro_multi_sense_e8b4cc_scd40_co2_concentration",
+            900.0,
+            "2024-01-01T23:00:00+00:00",
+        ),
+    ]
+    df = pd.DataFrame(rows, columns=["entity_id", "state", "ts"])
+    df["timestamp"] = pd.to_datetime(df["ts"], utc=True)
+    return df.drop(columns=["ts"]).set_index("timestamp")
+
+
+def test_aggregate_daily_features_sauna_boolean() -> None:
+    df = aggregate_daily_features(_sauna_readings())
+
+    assert df.index.name == "date"
+    assert "sauna" in df.columns
+    assert "bedroom_co2" in df.columns
+    # Day 1 crossed 60 °C → True; day 2 peaked at 22 °C → False
+    assert bool(df.loc["2024-01-01", "sauna"]) is True
+    assert bool(df.loc["2024-01-02", "sauna"]) is False
+    # CO2 mean of 500 and 900 on day 1
+    assert df.loc["2024-01-01", "bedroom_co2"] == pytest.approx(700.0)
+
+
+def test_aggregate_daily_features_missing_day_is_nan_not_false() -> None:
+    """A day with no readings must stay NaN (unknown), never coerced to False."""
+    df = aggregate_daily_features(_sauna_readings())
+    # Day 2 has no CO2 readings → NaN, not a fabricated value
+    assert pd.isna(df.loc["2024-01-02", "bedroom_co2"])
+
+
+def test_aggregate_daily_features_absent_sensor_all_nan() -> None:
+    """A configured feature whose sensor never appears yields an all-NaN column."""
+    features = [
+        DailyFeature(name="never", entity_id="sensor.does_not_exist", agg="mean")
+    ]
+    df = aggregate_daily_features(_sauna_readings(), features=features)
+    assert "never" in df.columns
+    assert df["never"].isna().all()
+
+
+def test_aggregate_daily_features_rejects_bad_agg() -> None:
+    features = [
+        DailyFeature(name="x", entity_id="sensor.sauna_probe_temperature", agg="median")
+    ]
+    with pytest.raises(ValueError, match="Unsupported agg"):
+        aggregate_daily_features(_sauna_readings(), features=features)
+
+
+def test_load_daily_df_from_sqlite(tmp_path: Path) -> None:
+    """load_daily_df reads only the configured sensors and returns daily features."""
+    db = tmp_path / "home-assistant_v2.db"
+    con = sqlite3.connect(db)
+    con.executescript("""
+        CREATE TABLE states_meta (metadata_id INTEGER PRIMARY KEY, entity_id TEXT NOT NULL);
+        CREATE TABLE states (
+            state_id INTEGER PRIMARY KEY, metadata_id INTEGER NOT NULL,
+            state TEXT, last_updated_ts REAL
+        );
+        INSERT INTO states_meta VALUES (1, 'sensor.sauna_probe_temperature');
+        INSERT INTO states VALUES (1, 1, '20.0', 1704096000.0);
+        INSERT INTO states VALUES (2, 1, '82.0', 1704132000.0);
+    """)
+    con.commit()
+    con.close()
+
+    features = [
+        DailyFeature(
+            name="sauna",
+            entity_id="sensor.sauna_probe_temperature",
+            agg="max",
+            threshold=60.0,
+        )
+    ]
+    df = load_daily_df(path=db, features=features)
+    assert "sauna" in df.columns
+    assert bool(df["sauna"].iloc[0]) is True
 
 
 def test_create_fake_sensor_df() -> None:

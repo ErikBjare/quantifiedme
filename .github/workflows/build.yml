@@ -186,7 +186,10 @@ jobs:
     - name: Echo logs
       if: ${{ always() }}
       run: |
-        cat $HOME/.cache/activitywatch/log/aw-server-rust/*
+        # Diagnostic only: dump aw-server-rust logs if present. The nightly no
+        # longer always writes to this path, so tolerate a missing glob rather
+        # than failing the whole job (bash runs with -e).
+        cat $HOME/.cache/activitywatch/log/aw-server-rust/* 2>/dev/null || true
 
   deploy:
     runs-on: ubuntu-latest

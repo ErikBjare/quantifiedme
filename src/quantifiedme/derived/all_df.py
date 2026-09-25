@@ -189,9 +189,13 @@ def load_all_df(
                     if not local_tz:
                         try:
                             df_ha_recent = load_ha_daily_df()
-                            df_ha = df_ha_recent.combine_first(df_ha)
-                        except Exception:
-                            pass
+                            # Statistics export takes precedence for overlapping days
+                            # (the export has complete daily values; SQLite may only
+                            # cover a partial day at the retention boundary).
+                            # SQLite fills in only days not covered by the export.
+                            df_ha = df_ha.combine_first(df_ha_recent)
+                        except Exception as e:
+                            logger.warning(f"SQLite supplement failed, using statistics export only: {e}")
                 except (FileNotFoundError, KeyError) as e:
                     logger.warning(f"Statistics export unavailable ({e}); falling back to SQLite")
                     df_ha = load_ha_daily_df()

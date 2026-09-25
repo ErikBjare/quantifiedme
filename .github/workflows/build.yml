@@ -186,7 +186,17 @@ jobs:
     - name: Echo logs
       if: ${{ always() }}
       run: |
-        cat $HOME/.cache/activitywatch/log/aw-server-rust/*
+        # Diagnostic only: dump aw-server-rust logs if present. The nightly no
+        # longer always writes to this path, so tolerate a missing glob rather
+        # than failing the whole job (bash runs with -e). Use nullglob so an
+        # empty match produces an empty array (not a literal glob string), but
+        # don't suppress errors for files that do exist.
+        shopt -s nullglob
+        logs=( "$HOME/.cache/activitywatch/log/aw-server-rust/"* )
+        shopt -u nullglob
+        if [[ ${#logs[@]} -gt 0 ]]; then
+          cat "${logs[@]}"
+        fi
 
   deploy:
     runs-on: ubuntu-latest

@@ -20,6 +20,7 @@ from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
@@ -330,9 +331,9 @@ def aggregate_daily_features(
             continue
         if date_offset_hours:
             readings = readings.copy()
-            readings.index = readings.index - offset  # type: ignore[assignment]
+            readings.index = pd.DatetimeIndex(readings.index) - offset
         daily_count = readings.resample("D").count()
-        daily = readings.resample("D").agg(feat.agg)
+        daily = cast(pd.Series, readings.resample("D").agg(feat.agg))
         # Preserve NaN on days with no readings (resample sum returns 0 for empty
         # buckets, which would be indistinguishable from a real zero-sum day).
         daily = daily.where(daily_count > 0)

@@ -181,12 +181,17 @@ def load_all_df(
                         local_tz=local_tz or None,
                     )
                     # Supplement with SQLite so recent days not yet captured in the
-                    # export snapshot are included (export may lag by days or weeks).
-                    try:
-                        df_ha_recent = load_ha_daily_df()
-                        df_ha = df_ha.combine_first(df_ha_recent)
-                    except (FileNotFoundError, KeyError):
-                        pass
+                    # export snapshot are included.  SQLite takes precedence for
+                    # overlapping days (fresher than the snapshot).
+                    # Skip when ha_local_tz is set: statistics use local calendar
+                    # dates; SQLite always groups by UTC day, so combining them
+                    # without alignment would place readings on the wrong day.
+                    if not local_tz:
+                        try:
+                            df_ha_recent = load_ha_daily_df()
+                            df_ha = df_ha_recent.combine_first(df_ha)
+                        except Exception:
+                            pass
                 except (FileNotFoundError, KeyError) as e:
                     logger.warning(f"Statistics export unavailable ({e}); falling back to SQLite")
                     df_ha = load_ha_daily_df()

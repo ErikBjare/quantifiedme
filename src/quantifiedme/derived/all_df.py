@@ -175,10 +175,21 @@ def load_all_df(
         try:
             if ha_stats_path_str:
                 local_tz = config.get("data", {}).get("ha_local_tz")
-                df_ha = load_ha_statistics_daily_df(
-                    Path(ha_stats_path_str).expanduser(),
-                    local_tz=local_tz or None,
-                )
+                try:
+                    df_ha = load_ha_statistics_daily_df(
+                        Path(ha_stats_path_str).expanduser(),
+                        local_tz=local_tz or None,
+                    )
+                    # Supplement with SQLite so recent days not yet captured in the
+                    # export snapshot are included (export may lag by days or weeks).
+                    try:
+                        df_ha_recent = load_ha_daily_df()
+                        df_ha = df_ha.combine_first(df_ha_recent)
+                    except (FileNotFoundError, KeyError):
+                        pass
+                except (FileNotFoundError, KeyError) as e:
+                    logger.warning(f"Statistics export unavailable ({e}); falling back to SQLite")
+                    df_ha = load_ha_daily_df()
             else:
                 _date_offset_hours = config.get("me", {}).get("date_offset_hours", 0)
                 df_ha = load_ha_daily_df(date_offset_hours=_date_offset_hours)

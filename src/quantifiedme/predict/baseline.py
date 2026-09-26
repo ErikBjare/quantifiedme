@@ -85,7 +85,9 @@ def train_baseline(
     """
     import lightgbm as lgb  # type: ignore[import-untyped]
 
-    X, y = build_feature_frame(df, target_col=target_col, top_n_substances=top_n_substances)
+    X, y = build_feature_frame(
+        df, target_col=target_col, top_n_substances=top_n_substances
+    )
 
     # Sanitize feature names for LightGBM (no special JSON chars)
     import re as _re
@@ -109,12 +111,18 @@ def train_baseline(
     val_fraction = test_fraction
     train_end = int(len(X) * (1 - test_fraction - val_fraction))
     val_end = int(len(X) * (1 - test_fraction))
-    X_train, X_val, X_test = X.iloc[:train_end], X.iloc[train_end:val_end], X.iloc[val_end:]
-    y_train, y_val, y_test = y.iloc[:train_end], y.iloc[train_end:val_end], y.iloc[val_end:]
-
-    logger.info(
-        f"Split: {len(X_train)} train, {len(X_val)} val, {len(X_test)} test"
+    X_train, X_val, X_test = (
+        X.iloc[:train_end],
+        X.iloc[train_end:val_end],
+        X.iloc[val_end:],
     )
+    y_train, y_val, y_test = (
+        y.iloc[:train_end],
+        y.iloc[train_end:val_end],
+        y.iloc[val_end:],
+    )
+
+    logger.info(f"Split: {len(X_train)} train, {len(X_val)} val, {len(X_test)} test")
     logger.info(f"Features: {len(X.columns)}")
 
     # Train LightGBM (early stopping on validation set, NOT test set)
@@ -223,7 +231,9 @@ def run_diagnostic(
 
     results = {}
     print(f"Running diagnostic across {len(targets)} targets...\n")
-    print(f"{'Target':<25} {'Train R²':>10} {'Test R²':>10} {'Test RMSE':>10} {'Test MAE':>10} {'Mean':>8} {'Std':>8} {'N':>6}")
+    print(
+        f"{'Target':<25} {'Train R²':>10} {'Test R²':>10} {'Test RMSE':>10} {'Test MAE':>10} {'Mean':>8} {'Std':>8} {'N':>6}"
+    )
     print("-" * 95)
 
     for target in targets:
@@ -241,7 +251,9 @@ def run_diagnostic(
 
     # Summary: which features appear most across targets
     if results:
-        print("\n--- Cross-Target Feature Importance (top features across all targets) ---")
+        print(
+            "\n--- Cross-Target Feature Importance (top features across all targets) ---"
+        )
         all_importances: dict[str, float] = {}
         for result in results.values():
             for feat, imp in result.feature_importance.head(10).items():

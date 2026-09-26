@@ -112,7 +112,9 @@ def build_substance_features(
         features[f"decay:{substance}:today"] = df[col].fillna(0)
 
         # Decay kernel (accumulated exposure)
-        features[f"decay:{substance}:kernel"] = decay_kernel(df[col], tau=tau, window=window)
+        features[f"decay:{substance}:kernel"] = decay_kernel(
+            df[col], tau=tau, window=window
+        )
 
         # Simple trailing sum (how many of past N days)
         features[f"decay:{substance}:count_{window}d"] = (
@@ -161,9 +163,7 @@ def build_screentime_features(
             features[f"lag:{name}:d-{lag}"] = df[col].shift(lag)
 
         # 7-day rolling mean
-        features[f"roll:{name}:7d_mean"] = (
-            df[col].rolling(7, min_periods=1).mean()
-        )
+        features[f"roll:{name}:7d_mean"] = df[col].rolling(7, min_periods=1).mean()
 
         # 7-day rolling std (consistency/volatility)
         features[f"roll:{name}:7d_std"] = (
@@ -226,7 +226,9 @@ def build_autoregressive_features(
 
     # Rolling statistics
     features[f"ar:{name}:7d_mean"] = df[target_col].rolling(7, min_periods=1).mean()
-    features[f"ar:{name}:7d_std"] = df[target_col].rolling(7, min_periods=1).std().fillna(0)
+    features[f"ar:{name}:7d_std"] = (
+        df[target_col].rolling(7, min_periods=1).std().fillna(0)
+    )
     features[f"ar:{name}:14d_mean"] = df[target_col].rolling(14, min_periods=1).mean()
 
     return features

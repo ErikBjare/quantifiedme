@@ -16,11 +16,8 @@ from aw_transform.union_no_overlap import union_no_overlap
 
 from ..cache import cache_dir, memory
 from ..config import _get_config_path, load_config
-from ..load.activitywatch import (
-    HAS_MULTIDEVICE,
-    discover_hosts,
-    load_events_multidevice,
-)
+from ..load import activitywatch as aw_load
+from ..load.activitywatch import discover_hosts, load_events_host
 from ..load.activitywatch import load_events as load_events_activitywatch
 from ..load.activitywatch_fake import create_fake_events
 from ..load.smartertime import load_events as load_events_smartertime
@@ -153,26 +150,21 @@ def _load_activitywatch(
 
     # Split up into weeks, to take advantage of caching
     # TODO: Split up into whole days
-    if HAS_MULTIDEVICE:
-        events: list[Event] = []
-        for dtstart, dtend in split_into_weeks(since, now):
-            events += load_events_multidevice(
-                awc, tuple(hosts), since=dtstart, end=dtend
-            )
-        for e in events:
-            e.data["$source"] = "activitywatch"
-        return events
-
-    # Fallback for aw-client without multidevice support: one query per
-    # desktop host, combined here (first host wins where they overlap).
-    events = []
-    for _, hostname, *_bids in hosts:
+    # One query per host, combined here in priority order (first host wins
+    # where hosts overlap), so each event keeps its $hostname.
+    events: list[Event] = []
+    for host in hosts:
+        hostname = host[1]
         logger.info(f"Getting events for {hostname}...")
         events_aw: list[Event] = []
         for dtstart, dtend in split_into_weeks(since, now):
-            events_aw += load_events_activitywatch(
-                awc, hostname, since=dtstart, end=dtend
-            )
+            if aw_load.HAS_MULTIDEVICE:
+                events_aw += load_events_host(awc, host, since=dtstart, end=dtend)
+            else:
+                # aw-client without multidevice support: aw-research query
+                events_aw += load_events_activitywatch(
+                    awc, hostname, since=dtstart, end=dtend
+                )
             logger.debug(f"{len(events_aw)} events retreived")
         for e in events_aw:
             e.data["$hostname"] = hostname

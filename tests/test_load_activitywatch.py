@@ -90,3 +90,63 @@ def test_discover_hosts(has_multidevice):
     # Explicit hostnames select and order hosts
     hosts = discover_hosts(BUCKETS, hostnames=["desktop", "missing", "laptop"])
     assert [h[1] for h in hosts] == ["desktop", "laptop"]
+
+
+class _FakeClient:
+    """Answers each per-host query with events from the bucket it queries."""
+
+    def __init__(self, buckets, events_by_bucket):
+        self.buckets = buckets
+        self.events_by_bucket = events_by_bucket
+
+    def get_buckets(self):
+        return self.buckets
+
+    def query(self, query, timeperiods):
+        for bid, events in self.events_by_bucket.items():
+            if f'query_bucket("{bid}")' in query:
+                return [events]
+        return [[]]
+
+
+def test_load_activitywatch_combines_hosts(monkeypatch, has_multidevice):
+    from datetime import timedelta
+
+    import quantifiedme.derived.screentime as screentime
+    import quantifiedme.load.activitywatch as mod
+
+    if not has_multidevice:
+        pytest.skip("fallback path uses the aw-research query")
+    # Bypass the joblib cache
+    monkeypatch.setattr(screentime, "load_events_host", mod.load_events_host.func)
+
+    t0 = datetime(2026, 1, 5, 12, tzinfo=timezone.utc)
+
+    def ev(minutes, duration, app):
+        return {
+            "timestamp": (t0 + timedelta(minutes=minutes)).isoformat(),
+            "duration": duration * 60,
+            "data": {"app": app},
+        }
+
+    awc = _FakeClient(
+        BUCKETS,
+        {
+            "aw-watcher-window_laptop": [ev(0, 30, "code")],
+            "aw-watcher-android-synced-from-phone": [ev(20, 20, "Chat")],
+        },
+    )
+    config: dict = {"data": {"activitywatch": {}}}
+    events = screentime._load_activitywatch(
+        awc,  # type: ignore[arg-type]
+        config,
+        t0 - timedelta(days=1),
+        t0 + timedelta(days=1),
+    )
+    by_host = {
+        h: sum((e.duration for e in events if e.data["$hostname"] == h), timedelta())
+        for h in ("laptop", "phone")
+    }
+    # laptop has priority; the phone only fills the 10 minutes after it
+    assert by_host == {"laptop": timedelta(minutes=30), "phone": timedelta(minutes=10)}
+    assert all(e.data["$source"] == "activitywatch" for e in events)

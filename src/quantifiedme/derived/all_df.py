@@ -23,7 +23,9 @@ from .sleep import load_sleep_df
 
 logger = logging.getLogger(__name__)
 
-Sources = Literal["screentime", "heartrate", "drugs", "location", "sleep", "journal", "cycles"]
+Sources = Literal[
+    "screentime", "heartrate", "drugs", "location", "sleep", "journal", "cycles"
+]
 
 
 def load_all_df(

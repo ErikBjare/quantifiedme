@@ -165,19 +165,26 @@ def _host_params(spec: HostSpec):
 
 
 @memory.cache(ignore=["awc"])
-def load_events_multidevice(
+def load_events_host(
     awc: ActivityWatchClient,
-    hosts: tuple[HostSpec, ...],
+    host: HostSpec,
     since: datetime,
     end: datetime,
 ) -> list[Event]:
-    """Load events from several hosts at once, combined without overlap.
+    """Load canonical events for one discovered host (desktop or Android).
 
-    ``hosts`` (from :func:`discover_hosts`) is part of the cache key, so the
-    cache is invalidated whenever the set of hosts or their buckets change.
+    Uses the same per-host query as ``canonicalMultideviceEvents`` in aw-client
+    (exact bucket IDs, Android events not merged by app). Hosts are combined
+    client-side (see ``derived.screentime``) so each event keeps its
+    ``$hostname``. ``host`` (from :func:`discover_hosts`) is part of the cache
+    key, so the cache is invalidated when a host's buckets change.
     """
-    params = [_host_params(spec) for spec in hosts]
-    query = _queries.canonicalMultideviceEvents(params) + "\nRETURN = events;"
+    query = (
+        _queries.canonicalEvents(
+            _host_params(host), exact_bucket_ids=True, merge_android=False
+        )
+        + "\nRETURN = sort_by_timestamp(events);"
+    )
     logger.debug(f"Query:\n{query}")
 
     result = awc.query(query, timeperiods=[(since, end)])

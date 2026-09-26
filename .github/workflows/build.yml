@@ -184,19 +184,21 @@ jobs:
         path: notebooks/output
 
     - name: Echo logs
-      if: ${{ always() }}
+      if: ${{ always() && matrix.aw-server == 'aw-server-rust' && matrix.aw-version == 'master' }}
       run: |
-        # Diagnostic only: dump aw-server-rust logs if present. The nightly no
-        # longer always writes to this path, so tolerate a missing glob rather
-        # than failing the whole job (bash runs with -e). Use nullglob so an
-        # empty match produces an empty array (not a literal glob string), but
-        # don't suppress errors for files that do exist.
-        shopt -s nullglob
-        logs=( "$HOME/.cache/activitywatch/log/aw-server-rust/"* )
-        shopt -u nullglob
-        if [[ ${#logs[@]} -gt 0 ]]; then
-          cat "${logs[@]}"
+        # The nightly is a debug build, which defaults to the "testing" profile
+        # (aw-server-rust#652). On a fresh runner that resolves to the isolated
+        # appname "activitywatch-testing", so logs go to
+        # ~/.cache/activitywatch-testing/log/aw-server-rust/ (Linux user_log_dir,
+        # see aw-server/src/dirs.rs). Fail loudly if they move again, rather than
+        # silently printing nothing (cf. aw-server-rust#565).
+        logdir="$HOME/.cache/activitywatch-testing/log/aw-server-rust"
+        if ! compgen -G "$logdir/*" > /dev/null; then
+          echo "::error::no aw-server-rust logs in $logdir; the log path changed again?"
+          find "$HOME/.cache" -path '*activitywatch*' -name '*.log' 2>/dev/null | head -20
+          exit 1
         fi
+        cat "$logdir"/*
 
   deploy:
     runs-on: ubuntu-latest

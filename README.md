@@ -22,6 +22,7 @@ Types of data supported:
  - Time tracking data (from ActivityWatch, Toggl, SmarterTime)
  - Sleep data (from Fitbit, Oura, Whoop)
  - Heartrate data (from Fitbit, Oura, Whoop)
+ - Exercise data: workouts (Whoop), strength training (Hevy), daily steps (Home Assistant companion-app step sensors)
  - Location data (from Google Location History)
    - Includes basic plotting of time spent in a certain location.
    - Includes function for computing the colocation time of two location histories (time spent together).
@@ -38,6 +39,8 @@ Can load data from:
  - Fitbit
  - Whoop (live API via OAuth — see `src/quantifiedme/load/whoop_api.py` — or CSV/GDPR exports)
  - Oura
+ - Hevy (strength-training CSV export — see `src/quantifiedme/load/hevy.py`)
+ - Home Assistant (sensor history, and daily steps from long-term statistics — see `src/quantifiedme/load/steps.py`)
  - SMS Backup & Restore (calls/SMS — see `src/quantifiedme/load/comms_backup.py`)
  - EEG devices (WIP)
  - ...and more (see `src/quantifiedme/load/`)

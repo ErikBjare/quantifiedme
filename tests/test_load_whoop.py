@@ -24,7 +24,9 @@ from quantifiedme.load.whoop import (
     load_heartrate_df,
     load_journal_daily_df,
     load_sleep_df,
+    load_workouts_daily_df,
     load_workouts_df,
+    workouts_to_daily_df,
 )
 
 has_whoop_config = load_config().get("data", {}).get("whoop", False)
@@ -179,6 +181,7 @@ def test_load_workouts_standard(standard_export: Path) -> None:
         "energy_kcal",
         "max_hr",
         "avg_hr",
+        "date",
     ]
     # Timezone conversion: 2026-05-10 18:00 UTC+02:00 → 16:00 UTC
     assert df.iloc[0]["start"] == pd.Timestamp("2026-05-10 16:00:00", tz="UTC")
@@ -354,3 +357,111 @@ def test_load_whoop_heartrate_or_cycles() -> None:
         # Standard format — try cycles instead
         df = load_cycles_df()
         assert len(df) > 0
+
+
+# ── Daily workout aggregation ─────────────────────────────────────────────────
+
+
+def _workouts(rows: list[tuple[str, str, int, str, float, float]]) -> pd.DataFrame:
+    """(local date, UTC start, minutes, activity, strain, kcal) → workout event df."""
+    records = []
+    for date, start, minutes, activity, strain, kcal in rows:
+        start_ts = pd.Timestamp(start, tz="UTC")
+        records.append(
+            {
+                "start": start_ts,
+                "end": start_ts + pd.Timedelta(minutes=minutes),
+                "duration": pd.Timedelta(minutes=minutes),
+                "activity": activity,
+                "strain": strain,
+                "energy_kcal": kcal,
+                "max_hr": 170,
+                "avg_hr": 140,
+                "date": pd.Timestamp(date).date(),
+            }
+        )
+    return pd.DataFrame(records)
+
+
+def test_workouts_to_daily_df() -> None:
+    df = _workouts(
+        [
+            ("2026-05-10", "2026-05-10 06:00", 60, "Running", 10.0, 500.0),
+            ("2026-05-10", "2026-05-10 16:00", 30, "Weightlifting", 6.0, 200.0),
+            # rest day 2026-05-11
+            ("2026-05-12", "2026-05-12 17:00", 45, "running", 12.0, 450.0),
+        ]
+    )
+    daily = workouts_to_daily_df(df)
+
+    assert list(daily.index) == list(pd.date_range("2026-05-10", "2026-05-12"))
+    assert daily.index.name == "date"
+    d1 = daily.loc["2026-05-10"]
+    assert d1["count"] == 2
+    assert d1["minutes"] == 90
+    assert d1["strain_max"] == 10.0  # max, not sum (strain is logarithmic)
+    assert d1["energy_kcal"] == 700
+    # sport names are slugified, so "Running" and "running" merge
+    assert d1["minutes_running"] == 60
+    assert d1["minutes_weightlifting"] == 30
+    assert daily.loc["2026-05-12", "minutes_running"] == 45
+
+    rest = daily.loc["2026-05-11"]
+    assert rest["count"] == 0 and rest["minutes"] == 0 and rest["energy_kcal"] == 0
+    assert pd.isna(rest["strain_max"])
+
+
+def test_workouts_to_daily_df_uses_local_date() -> None:
+    """A late-evening local workout stays on its local day, not the UTC day."""
+    df = _workouts([("2026-05-10", "2026-05-11 00:30", 30, "Walking", 3.0, 100.0)])
+    daily = workouts_to_daily_df(df)
+    assert list(daily.index) == [pd.Timestamp("2026-05-10")]
+
+
+def test_workouts_to_daily_df_top_sports_other_bucket() -> None:
+    df = _workouts(
+        [
+            ("2026-05-10", "2026-05-10 06:00", 60, "Running", 10.0, 500.0),
+            ("2026-05-10", "2026-05-10 08:00", 20, "Yoga", 2.0, 50.0),
+            ("2026-05-10", "2026-05-10 09:00", 10, "Walking", 1.0, 30.0),
+        ]
+    )
+    daily = workouts_to_daily_df(df, top_sports=1)
+    sport_cols = [c for c in daily.columns if c.startswith("minutes_")]
+    assert sport_cols == ["minutes_running", "minutes_other"]
+    assert daily.loc["2026-05-10", "minutes_other"] == 30
+
+
+def test_workouts_to_daily_df_excludes_recovery_from_totals() -> None:
+    df = _workouts(
+        [
+            ("2026-05-10", "2026-05-10 06:00", 60, "Running", 10.0, 500.0),
+            ("2026-05-10", "2026-05-10 19:00", 20, "Sauna", 1.0, 80.0),
+            ("2026-05-11", "2026-05-11 19:00", 20, "Sauna", 1.0, 80.0),
+        ]
+    )
+    daily = workouts_to_daily_df(df)
+    d1 = daily.loc["2026-05-10"]
+    assert d1["count"] == 1 and d1["minutes"] == 60 and d1["energy_kcal"] == 500
+    assert d1["minutes_sauna"] == 20
+    # a sauna-only day has no exercise, but its sauna minutes are kept
+    d2 = daily.loc["2026-05-11"]
+    assert d2["count"] == 0 and d2["minutes"] == 0 and d2["energy_kcal"] == 0
+    assert pd.isna(d2["strain_max"])
+    assert d2["minutes_sauna"] == 20
+
+
+def test_workouts_to_daily_df_empty() -> None:
+    daily = workouts_to_daily_df(_workouts([]))
+    assert daily.empty
+    assert {"count", "minutes", "strain_max", "energy_kcal"} <= set(daily.columns)
+
+
+def test_load_workouts_daily_df_from_standard_export(patched_whoop_dir: Path) -> None:
+    daily = load_workouts_daily_df()
+    assert list(daily.index) == [pd.Timestamp("2026-05-10")]
+    row = daily.iloc[0]
+    assert row["count"] == 1
+    assert row["minutes"] == 60
+    assert row["energy_kcal"] == 520
+    assert row["minutes_running"] == 60

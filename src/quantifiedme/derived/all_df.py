@@ -8,6 +8,7 @@ from datetime import (
     timedelta,
     timezone,
 )
+from pathlib import Path
 from typing import Literal, TypeAlias
 
 import click
@@ -17,6 +18,7 @@ from aw_core import Event
 from ..config import load_config
 from ..load.aw_input import load_daily_df as load_input_daily_df
 from ..load.home_assistant import load_daily_df as load_ha_daily_df
+from ..load.home_assistant import load_daily_df_from_statistics as load_ha_statistics_daily_df
 from ..load.location import load_daily_df as load_location_daily_df
 from ..load.qslang import load_daily_df as load_drugs_df
 from ..load.whoop import load_cycles_df as load_whoop_cycles_df
@@ -177,13 +179,44 @@ def load_all_df(
 
     if "home_assistant" not in ignore:
         print("\n# Adding Home Assistant behaviors (sauna, CO2)")
-        # Optional source: only present when data.home_assistant is configured and
-        # the local HA SQLite DB exists. Skipped cleanly otherwise.
+        # Prefer long-term statistics export (full history) over the SQLite states
+        # table (purged after ~10 days). Fall back to SQLite when no export path is set.
         try:
-            _date_offset_hours = load_config().get("me", {}).get(
-                "date_offset_hours", 0
-            )
-            df_ha = load_ha_daily_df(date_offset_hours=_date_offset_hours)
+            config = load_config()
+            ha_stats_path_str = config.get("data", {}).get("ha_statistics_export")
+        except Exception:
+            ha_stats_path_str = None
+            config = {}
+        try:
+            if ha_stats_path_str:
+                local_tz = config.get("data", {}).get("ha_local_tz")
+                try:
+                    df_ha = load_ha_statistics_daily_df(
+                        Path(ha_stats_path_str).expanduser(),
+                        local_tz=local_tz or None,
+                    )
+                    # Supplement with SQLite so recent days not yet captured in the
+                    # export snapshot are included.  SQLite takes precedence for
+                    # overlapping days (fresher than the snapshot).
+                    # Skip when ha_local_tz is set: statistics use local calendar
+                    # dates; SQLite always groups by UTC day, so combining them
+                    # without alignment would place readings on the wrong day.
+                    if not local_tz:
+                        try:
+                            df_ha_recent = load_ha_daily_df()
+                            # Statistics export takes precedence for overlapping days
+                            # (the export has complete daily values; SQLite may only
+                            # cover a partial day at the retention boundary).
+                            # SQLite fills in only days not covered by the export.
+                            df_ha = df_ha.combine_first(df_ha_recent)
+                        except Exception as e:
+                            logger.warning(f"SQLite supplement failed, using statistics export only: {e}")
+                except (FileNotFoundError, KeyError) as e:
+                    logger.warning(f"Statistics export unavailable ({e}); falling back to SQLite")
+                    df_ha = load_ha_daily_df()
+            else:
+                _date_offset_hours = config.get("me", {}).get("date_offset_hours", 0)
+                df_ha = load_ha_daily_df(date_offset_hours=_date_offset_hours)
         except (FileNotFoundError, KeyError, sqlite3.Error) as e:
             logger.warning(f"Skipping home_assistant source: {e}")
         else:

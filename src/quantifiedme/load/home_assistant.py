@@ -15,6 +15,7 @@ Rather than per-device CSV parsers, this loader covers all sensors that Erik rou
 through Home Assistant — current and future sensors automatically included.
 """
 
+import json
 import sqlite3
 from contextlib import closing
 from dataclasses import dataclass
@@ -375,6 +376,146 @@ def load_daily_df(
     return aggregate_daily_features(df, features, date_offset_hours=date_offset_hours)
 
 
+# Long-term statistics rows are already per-period aggregated, so each DailyFeature
+# selects the statistics column matching its `agg` directly — no re-resampling needed.
+_AGG_TO_STAT_COLUMN = {"max": "max", "min": "min", "mean": "mean", "sum": "sum"}
+
+
+def _parse_statistics_start(value: int | float | str) -> pd.Timestamp:
+    """Parse a statistics row ``start`` (epoch-ms int/float or ISO string) to a UTC Timestamp."""
+    if isinstance(value, (int, float)):
+        return pd.Timestamp(value, unit="ms", tz="UTC")
+    ts = pd.Timestamp(value)
+    return ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
+
+
+def load_statistics_export(
+    path: Path, local_tz: str | None = None
+) -> dict[str, pd.DataFrame]:
+    """Read a long-term statistics export produced by ``ha.py statistics --json``.
+
+    Unlike the ``states`` table (purged after ~10 days), HA long-term statistics are
+    retained indefinitely for any ``state_class`` sensor — this is the path to the
+    full multi-year history (e.g. 384 days of sauna-probe temperature back to
+    2025-08-19) that the SQLite/REST loaders cannot reach.
+
+    The export is a JSON object mapping each entity_id to a list of per-period rows,
+    each carrying ``start`` plus whichever of ``mean``/``min``/``max``/``sum`` HA keeps
+    for that sensor's ``state_class``.
+
+    Args:
+        path: Path to the JSON export file.
+        local_tz: Optional timezone name (e.g. ``"Europe/Stockholm"``) used to
+                  convert UTC ``start`` timestamps to local calendar dates before
+                  grouping. Without this, a session ending after local midnight but
+                  before UTC midnight is attributed to the wrong calendar date. Defaults
+                  to UTC (prior behaviour).
+
+    Returns:
+        Mapping from entity_id to a DataFrame indexed by local calendar date with
+        the statistics columns present in the export. Entities with no rows yield
+        an empty DataFrame.
+
+    Raises:
+        FileNotFoundError: if ``path`` does not exist.
+    """
+    if not path.exists():
+        raise FileNotFoundError(f"Statistics export not found: {path}")
+
+    with open(path) as f:
+        raw = json.load(f)
+
+    out: dict[str, pd.DataFrame] = {}
+    for entity_id, rows in raw.items():
+        if not rows:
+            out[entity_id] = pd.DataFrame()
+            continue
+        df = pd.DataFrame(rows)
+        dates = df["start"].map(_parse_statistics_start)
+        stat_cols = [c for c in ("mean", "min", "max", "sum") if c in df.columns]
+        df = df[stat_cols].copy()
+        if local_tz is not None:
+            local_dates = pd.DatetimeIndex(dates).tz_convert(local_tz)
+            df.index = pd.DatetimeIndex(local_dates.date)
+        else:
+            df.index = pd.DatetimeIndex(pd.DatetimeIndex(dates).date)
+        df.index.name = "date"
+        out[entity_id] = df.sort_index()
+    return out
+
+
+def aggregate_statistics_features(
+    stats: dict[str, pd.DataFrame],
+    features: list[DailyFeature] | None = None,
+) -> pd.DataFrame:
+    """Aggregate long-term statistics into a daily behavior/feature DataFrame.
+
+    The statistics counterpart of :func:`aggregate_daily_features`: statistics rows are
+    already per-day aggregated, so each feature selects the column matching its ``agg``
+    (``max``→``max``, ``mean``→``mean``, …) rather than resampling raw readings. Boolean
+    behaviors (``threshold`` set) preserve NaN on days with no row — never a fabricated
+    ``False``. Output shape matches :func:`aggregate_daily_features` so both feed
+    :func:`quantifiedme.derived.all_df.load_all_df` interchangeably.
+
+    Args:
+        stats: Mapping from :func:`load_statistics_export`.
+        features: Feature specs to compute. Defaults to :data:`DEFAULT_DAILY_FEATURES`.
+
+    Returns:
+        DataFrame indexed by date (midnight-normalized) with one column per feature.
+        Sensors absent from ``stats`` (or lacking the required statistic column) yield
+        an all-NaN column.
+    """
+    if features is None:
+        features = DEFAULT_DAILY_FEATURES
+
+    for feat in features:
+        if feat.agg not in _VALID_AGGS:
+            raise ValueError(
+                f"Unsupported agg {feat.agg!r} for feature {feat.name!r}. "
+                f"Expected one of {_VALID_AGGS}"
+            )
+
+    series: dict[str, pd.Series] = {}
+    for feat in features:
+        entity_df = stats.get(feat.entity_id)
+        stat_col = _AGG_TO_STAT_COLUMN[feat.agg]
+        if entity_df is None or entity_df.empty or stat_col not in entity_df.columns:
+            series[feat.name] = pd.Series(dtype="float64")
+            continue
+        daily = entity_df[stat_col]
+        if feat.threshold is not None:
+            # Boolean behavior; keep NaN where the day had no statistics row (not False).
+            daily = daily.gt(feat.threshold).where(daily.notna())
+        series[feat.name] = daily
+
+    # Use concat so each feature's full date range is preserved (column assignment
+    # would silently drop dates not present in the first feature's index).
+    result = pd.concat(series, axis=1) if series else pd.DataFrame()
+    result.index.name = "date"
+    return result
+
+
+def load_daily_df_from_statistics(
+    path: Path,
+    features: list[DailyFeature] | None = None,
+    local_tz: str | None = None,
+) -> pd.DataFrame:
+    """Load daily HA behavior features from a long-term statistics export.
+
+    Convenience wrapper over :func:`load_statistics_export` +
+    :func:`aggregate_statistics_features`. Use this (not :func:`load_daily_df`) when you
+    need the full retained history rather than the ~10 days the ``states`` table keeps —
+    e.g. the multi-year ``ha:sauna`` series for the behaviors-impact decorrelation.
+
+    Args:
+        path: Path to the JSON statistics export.
+        features: Feature specs. Defaults to :data:`DEFAULT_DAILY_FEATURES`.
+        local_tz: Optional timezone for correct local-date attribution (see
+                  :func:`load_statistics_export`).
+    """
+    stats = load_statistics_export(Path(path), local_tz=local_tz)
+    return aggregate_statistics_features(stats, features)
 def create_fake_sensor_df(
     start: str = "2024-01-01",
     end: str = "2024-12-31",

@@ -105,3 +105,14 @@ def test_classify_uses_server_by_default(monkeypatch):
     ]
     events = screentime.classify(events, personal=True)
     assert events[0].data["$tags"] == {"Media>Games", "Media"}
+
+
+def test_tags_independent_of_rule_order():
+    classes: list[tuple[list[str], dict]] = [
+        (["A>B"], {"type": "regex", "regex": "x"}),
+        (["A", "B"], {"type": "regex", "regex": "y"}),
+        (["C", "B"], {"type": "regex", "regex": "z"}),
+    ]
+    fwd = {t: r for r, t, _ in server_classes_to_aw_research(classes)}
+    rev = {t: r for r, t, _ in server_classes_to_aw_research(classes[::-1])}
+    assert fwd == rev

@@ -194,7 +194,8 @@ def _category_tags(names: list[list[str]]) -> dict[tuple[str, ...], str]:
     paths = [tuple(n.strip('"') for n in name) for name in names]
     tags: dict[tuple[str, ...], str] = {}
     used: set[str] = set()
-    for orig, path in zip(names, paths, strict=True):
+    # sorted, so tags don't depend on the order of rules in the server settings
+    for orig, path in sorted(zip(names, paths, strict=True), key=lambda x: x[1]):
         tag = None
         for n in range(1, len(path) + 1):
             # compare the joined strings, since names may themselves contain ">"

@@ -291,7 +291,8 @@ def _read_cache(
         cached = pickle.load(f)
     if cached["since"] > since:
         return None
-    if hosts is not None and cached["hosts"] is not None and cached["hosts"] != hosts:
+    # hosts unknown now (aw-server unreachable): reuse. Unknown when cached: miss.
+    if hosts is not None and cached["hosts"] != hosts:
         return None
     print(f"Loading from cache: {path}")
     return cached["events"]
@@ -346,9 +347,13 @@ def load_screentime_cached(
     cache_dir.mkdir(parents=True, exist_ok=True)
     # write to a unique temp file and rename, so concurrent loads can't corrupt it
     fd, tmp = tempfile.mkstemp(dir=cache_dir, prefix=f"{path.name}.", suffix=".tmp")
-    with os.fdopen(fd, "wb") as f:
-        pickle.dump({"since": since, "hosts": hosts, "events": events}, f)
-    os.replace(tmp, path)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            pickle.dump({"since": since, "hosts": hosts, "events": events}, f)
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
     _cleanup_cache(fast, keep=path)
     return events
 

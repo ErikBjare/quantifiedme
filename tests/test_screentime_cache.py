@@ -124,6 +124,17 @@ def test_fresh_cache_used_when_server_unreachable(env, monkeypatch):
     assert env["loads"] == 1
 
 
+def test_cache_written_without_hosts_is_not_reused_once_known(env, monkeypatch):
+    def unreachable(awc, config, hn):
+        raise ConnectionError
+
+    with monkeypatch.context() as m:
+        m.setattr(screentime, "_discover_aw_hosts", unreachable)
+        screentime.load_screentime_cached(since=_since(30))
+    screentime.load_screentime_cached(since=_since(30))
+    assert env["loads"] == 2
+
+
 def test_cache_version_changes_key(env, monkeypatch):
     key = screentime.screentime_cache_key()
     monkeypatch.setattr(screentime, "CACHE_VERSION", screentime.CACHE_VERSION + 1)

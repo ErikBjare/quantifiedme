@@ -46,7 +46,9 @@ def _print_bayesian_result(result: "BayesianWorkResult") -> None:
     # Show credible intervals for recent test predictions
     ci = result.credible_intervals()
     print("Recent test predictions (last 10 days):")
-    print(f"{'Date':<12} {'Actual':>8} {'Mean':>8} {'CI_3%':>8} {'CI_97%':>8} {'Hit':>5}")
+    print(
+        f"{'Date':<12} {'Actual':>8} {'Mean':>8} {'CI_3%':>8} {'CI_97%':>8} {'Hit':>5}"
+    )
     for idx, row in ci.tail(10).iterrows():
         hit = "✓" if row["ci_3"] <= row["actual"] <= row["ci_97"] else "✗"
         print(
@@ -106,9 +108,11 @@ def cmd_simulate(args: argparse.Namespace) -> None:
 
     if not add_substances and not remove_substances:
         print("Error: specify at least one --add or --remove substance")
-        print("Available substances: caffeine, alcohol, cannabinoids, nicotine, "
-              "psychedelics, stimulants, nootropics, sleepaids, dissociatives, "
-              "empathogens, gabaergics, benzos, depressants")
+        print(
+            "Available substances: caffeine, alcohol, cannabinoids, nicotine, "
+            "psychedelics, stimulants, nootropics, sleepaids, dissociatives, "
+            "empathogens, gabaergics, benzos, depressants"
+        )
         sys.exit(1)
 
     result = simulate(
@@ -169,16 +173,22 @@ def main(argv: list[str] | None = None) -> None:
     # diagnostic
     p_diag = sub.add_parser("diagnostic", help="Multi-target diagnostic")
     p_diag.add_argument("csv", type=Path, help="Path to QS CSV export")
-    p_diag.add_argument("--targets", default=None, help="Comma-separated target columns")
+    p_diag.add_argument(
+        "--targets", default=None, help="Comma-separated target columns"
+    )
     p_diag.set_defaults(func=cmd_diagnostic)
 
     # bayesian
     p_bayes = sub.add_parser("bayesian", help="Train Bayesian work consistency model")
     p_bayes.add_argument("csv", type=Path, help="Path to QS CSV export")
     p_bayes.add_argument("--target", default="time:Work", help="Target column")
-    p_bayes.add_argument("--samples", type=int, default=1000, help="Posterior samples per chain")
+    p_bayes.add_argument(
+        "--samples", type=int, default=1000, help="Posterior samples per chain"
+    )
     p_bayes.add_argument("--tune", type=int, default=1000, help="Tuning steps")
-    p_bayes.add_argument("--max-features", type=int, default=12, help="Max features to select")
+    p_bayes.add_argument(
+        "--max-features", type=int, default=12, help="Max features to select"
+    )
     p_bayes.set_defaults(func=cmd_bayesian)
 
     # sleep / wellbeing
@@ -189,9 +199,13 @@ def main(argv: list[str] | None = None) -> None:
         default="whoop:recovery",
         help="Wellbeing target (whoop:recovery, sleep:score, sleep:duration, whoop:hrv, ...)",
     )
-    p_sleep.add_argument("--samples", type=int, default=1000, help="Posterior samples per chain")
+    p_sleep.add_argument(
+        "--samples", type=int, default=1000, help="Posterior samples per chain"
+    )
     p_sleep.add_argument("--tune", type=int, default=1000, help="Tuning steps")
-    p_sleep.add_argument("--max-features", type=int, default=12, help="Max features to select")
+    p_sleep.add_argument(
+        "--max-features", type=int, default=12, help="Max features to select"
+    )
     p_sleep.add_argument(
         "--screentime",
         action="store_true",
@@ -203,19 +217,32 @@ def main(argv: list[str] | None = None) -> None:
     # simulate
     p_sim = sub.add_parser("simulate", help="Counterfactual simulation")
     p_sim.add_argument("csv", type=Path, help="Path to QS CSV export")
-    p_sim.add_argument("--add", action="append", default=None, help="Substance to add (repeatable)")
-    p_sim.add_argument("--remove", action="append", default=None, help="Substance to remove (repeatable)")
+    p_sim.add_argument(
+        "--add", action="append", default=None, help="Substance to add (repeatable)"
+    )
+    p_sim.add_argument(
+        "--remove",
+        action="append",
+        default=None,
+        help="Substance to remove (repeatable)",
+    )
     p_sim.add_argument("--target", default="time:Work", help="Target column")
-    p_sim.add_argument("--samples", type=int, default=1000, help="Posterior samples per chain")
+    p_sim.add_argument(
+        "--samples", type=int, default=1000, help="Posterior samples per chain"
+    )
     p_sim.add_argument("--tune", type=int, default=1000, help="Tuning steps")
-    p_sim.add_argument("--max-features", type=int, default=12, help="Max features to select")
+    p_sim.add_argument(
+        "--max-features", type=int, default=12, help="Max features to select"
+    )
     p_sim.set_defaults(func=cmd_simulate)
 
     # features
     p_feat = sub.add_parser("features", help="Inspect feature frame")
     p_feat.add_argument("csv", type=Path, help="Path to QS CSV export")
     p_feat.add_argument("--target", default="time:Work", help="Target column")
-    p_feat.add_argument("-v", "--verbose", action="store_true", help="Show per-feature stats")
+    p_feat.add_argument(
+        "-v", "--verbose", action="store_true", help="Show per-feature stats"
+    )
     p_feat.set_defaults(func=cmd_features)
 
     args = parser.parse_args(argv)

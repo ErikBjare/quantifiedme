@@ -22,7 +22,13 @@ categories = "./categories.example.toml"
 
 [data.activitywatch]
 port = 5666
+# Hosts are discovered from bucket metadata (including buckets synced with aw-sync).
+# Optional: only use these hosts, in this priority order (earlier wins on overlap).
 hostnames = ["fakedata"]
+# Optional: hosts to skip
+#exclude_hostnames = ["old-laptop"]
+# Optional: include Android devices (default: true, needs aw-client with multidevice support)
+#include_mobile = true
 
 #[data.smartertime_buckets]
 #example-hostname = '~/data/smartertime/smartertime_export_example-hostname_2020-01-01_bb7f26aa.awbucket.json'

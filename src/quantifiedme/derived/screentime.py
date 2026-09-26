@@ -16,6 +16,8 @@ from aw_transform.union_no_overlap import union_no_overlap
 
 from ..cache import cache_dir, memory
 from ..config import _get_config_path, load_config
+from ..load import activitywatch as aw_load
+from ..load.activitywatch import discover_hosts, load_events_host
 from ..load.activitywatch import load_events as load_events_activitywatch
 from ..load.activitywatch_fake import create_fake_events
 from ..load.smartertime import load_events as load_events_smartertime
@@ -74,30 +76,16 @@ def load_screentime(
             "toggl",
         ], f"Invalid source: {source}"
 
-    # Load hostnames from config if not specified
-    hostnames_config = config["data"]["activitywatch"].get("hostnames", [])
-    hostnames = hostnames or hostnames_config
-
     events: list[Event] = []
 
     if "activitywatch" in datasources:
         if awc is None:
             awc = _get_aw_client(not personal)
-        for hostname in hostnames or []:
-            logger.info(f"Getting events for {hostname}...")
-            # Split up into previous days and today, to take advantage of caching
-            # TODO: Split up into whole days
-            # TODO: Use `aw_client.queries.canonicalQuery` instead
-            events_aw: list[Event] = []
-            for dtstart, dtend in split_into_weeks(since, now):
-                events_aw += load_events_activitywatch(
-                    awc, hostname, since=dtstart, end=dtend
-                )
-                logger.debug(f"{len(events_aw)} events retreived")
-            for e in events_aw:
-                e.data["$hostname"] = hostname
-                e.data["$source"] = "activitywatch"
-            events = _join_events(events, events_aw, f"activitywatch {hostname}")
+        events = _join_events(
+            events,
+            _load_activitywatch(awc, config, since, now, hostnames),
+            "activitywatch",
+        )
 
     if "smartertime_buckets" in datasources:
         events_smartertime = load_events_smartertime(since)
@@ -127,6 +115,61 @@ def load_screentime(
     # Categorize
     events = classify(events, personal)
 
+    return events
+
+
+def _load_activitywatch(
+    awc: ActivityWatchClient,
+    config,
+    since: datetime,
+    now: datetime,
+    hostnames: list[str] | None = None,
+) -> list[Event]:
+    """Load events from all ActivityWatch hosts, combined without overlap.
+
+    Hosts are discovered from bucket metadata (including buckets synced with
+    aw-sync), so new devices are picked up automatically. Config options in
+    ``[data.activitywatch]``:
+
+    - ``hostnames``: only use these hosts, in this priority order (optional)
+    - ``exclude_hostnames``: hosts to skip (optional)
+    - ``include_mobile``: include Android devices (default: true, needs
+      aw-client with multidevice support)
+
+    Where hosts overlap in time, the earlier (higher priority) host wins.
+    """
+    sec_aw = config["data"].get("activitywatch", {})
+    hostnames = hostnames or sec_aw.get("hostnames") or None
+    hosts = discover_hosts(
+        awc.get_buckets(),
+        hostnames=hostnames,
+        exclude=sec_aw.get("exclude_hostnames", []),
+        include_mobile=sec_aw.get("include_mobile", True),
+    )
+    logger.info(f"ActivityWatch hosts (in priority order): {[h[1] for h in hosts]}")
+
+    # Split up into weeks, to take advantage of caching
+    # TODO: Split up into whole days
+    # One query per host, combined here in priority order (first host wins
+    # where hosts overlap), so each event keeps its $hostname.
+    events: list[Event] = []
+    for host in hosts:
+        hostname = host[1]
+        logger.info(f"Getting events for {hostname}...")
+        events_aw: list[Event] = []
+        for dtstart, dtend in split_into_weeks(since, now):
+            if aw_load.HAS_MULTIDEVICE:
+                events_aw += load_events_host(awc, host, since=dtstart, end=dtend)
+            else:
+                # aw-client without multidevice support: aw-research query
+                events_aw += load_events_activitywatch(
+                    awc, hostname, since=dtstart, end=dtend
+                )
+            logger.debug(f"{len(events_aw)} events retreived")
+        for e in events_aw:
+            e.data["$hostname"] = hostname
+            e.data["$source"] = "activitywatch"
+        events = _join_events(events, events_aw, f"activitywatch {hostname}")
     return events
 
 
@@ -311,11 +354,9 @@ def load_category_df(events: list[Event]) -> pd.DataFrame:
 @click.option("--csv", is_flag=True, help="Print as CSV")
 def screentime(csv: bool):
     """Loads screentime data, and prints total duration."""
-    hostnames = load_config()["data"]["activitywatch"]["hostnames"]
     events = load_screentime(
         since=datetime.now(tz=timezone.utc) - timedelta(days=90),
         datasources=["activitywatch"],
-        hostnames=hostnames,
         personal=True,
     )
     logger.info(f"Total duration: {sum((e.duration for e in events), timedelta(0))}")

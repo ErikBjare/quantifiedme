@@ -55,7 +55,9 @@ class BayesianWorkResult:
             "  Coefficient estimates (mean ± sd):",
         ]
 
-        summary_df = cast(pd.DataFrame, az.summary(self.trace, var_names=["beta", "intercept"]))
+        summary_df = cast(
+            pd.DataFrame, az.summary(self.trace, var_names=["beta", "intercept"])
+        )
         # Show intercept
         if "intercept" in summary_df.index:
             row = summary_df.loc["intercept"]
@@ -220,7 +222,9 @@ def train_bayesian_work(
 
     # Generate predictions: mu + noise for each posterior sample
     rng = np.random.default_rng(42)
-    mu_test_z = intercept_samples[:, None] + beta_samples @ X_test_z.values.T  # (n_samples, n_test)
+    mu_test_z = (
+        intercept_samples[:, None] + beta_samples @ X_test_z.values.T
+    )  # (n_samples, n_test)
     noise = rng.normal(0, sigma_samples[:, None], size=mu_test_z.shape)
     ppc_z = mu_test_z + noise
 
@@ -286,8 +290,12 @@ def query_intervention(
     beta_samples = posterior["beta"].values.reshape(-1, len(result.feature_names))
     intercept_samples = posterior["intercept"].values.flatten()
 
-    baseline_pred = (intercept_samples + beta_samples @ baseline_features) * y_std + y_mean
-    modified_pred = (intercept_samples + beta_samples @ modified_features) * y_std + y_mean
+    baseline_pred = (
+        intercept_samples + beta_samples @ baseline_features
+    ) * y_std + y_mean
+    modified_pred = (
+        intercept_samples + beta_samples @ modified_features
+    ) * y_std + y_mean
 
     return {
         "baseline": baseline_pred,

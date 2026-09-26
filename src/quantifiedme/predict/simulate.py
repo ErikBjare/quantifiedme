@@ -117,9 +117,7 @@ def build_intervention_features(
     for substance in remove_substances:
         indices = _find_substance_features(feature_names, substance)
         if not indices:
-            logger.warning(
-                f"Substance '{substance}' has no features in the model"
-            )
+            logger.warning(f"Substance '{substance}' has no features in the model")
             continue
 
         for suffix, idx in indices.items():

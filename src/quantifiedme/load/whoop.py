@@ -16,6 +16,7 @@ Format is auto-detected from directory contents. The journal loader is always
 file-based (the API does not expose journal entries).
 """
 
+import re
 from datetime import timedelta
 from pathlib import Path
 from typing import Literal
@@ -170,6 +171,8 @@ def _load_workouts_standard(d: Path) -> pd.DataFrame:
     df["start"] = _to_utc(df["Workout start time"], df["Cycle timezone"])
     df["end"] = _to_utc(df["Workout end time"], df["Cycle timezone"])
     df["duration"] = pd.to_timedelta(df["Duration (min)"], unit="m")
+    # Local calendar date of the workout start (timestamps are naive local)
+    df["date"] = pd.to_datetime(df["Workout start time"]).dt.date
     return df.rename(
         columns={
             "Activity name": "activity",
@@ -188,6 +191,7 @@ def _load_workouts_standard(d: Path) -> pd.DataFrame:
             "energy_kcal",
             "max_hr",
             "avg_hr",
+            "date",
         ]
     ]
 
@@ -459,3 +463,111 @@ def load_workouts_df() -> pd.DataFrame:
             "Workout data only available in standard Whoop export, not GDPR full export."
         )
     return _load_workouts_standard(d)
+
+
+def _sport_slug(name: object) -> str:
+    """'Functional Fitness' / 'functional-fitness' → 'functional_fitness'."""
+    slug = re.sub(r"[^a-z0-9]+", "_", str(name).lower()).strip("_")
+    return slug or "unknown"
+
+
+# Whoop "activities" that are recovery/relaxation rather than exercise. They
+# still get per-sport minute columns, but are excluded from the exercise totals.
+NON_EXERCISE_SPORTS = {
+    "sauna",
+    "ice_bath",
+    "meditation",
+    "breathwork",
+    "massage_therapy",
+    "increase_alertness",
+    "increase_relaxation",
+}
+
+
+def workouts_to_daily_df(df: pd.DataFrame, top_sports: int = 6) -> pd.DataFrame:
+    """Aggregate workout events (from :func:`load_workouts_df`) into one row per day.
+
+    Days are local calendar days of the workout start (the ``date`` column).
+    Returns a DataFrame indexed by date (naive ``DatetimeIndex``) with columns:
+
+    - ``count``: number of exercise workouts
+    - ``minutes``: total exercise duration (minutes)
+    - ``strain``: highest single-workout strain (Whoop strain is
+      logarithmic, so summing across workouts is not meaningful)
+    - ``kcal``: total energy burned during workouts (kcal)
+    - ``sport:<sport>:minutes``: minutes per sport, for the ``top_sports`` exercise
+      sports with the most total minutes plus every recovery activity present;
+      remaining sports go into ``sport:other:minutes``
+
+    Recovery activities (sauna, ice bath, breathwork, ... see
+    ``NON_EXERCISE_SPORTS``) are excluded from ``count``/``minutes``/
+    ``strain``/``kcal`` but still get per-sport minute columns.
+
+    Days between the first and last workout without any workout get 0 for the
+    count/duration/energy columns (and NaN for ``strain``), so rest days
+    are distinguishable from days outside the data range.
+    """
+    base_cols = ["count", "minutes", "strain", "kcal"]
+    if df.empty:
+        out = pd.DataFrame(columns=base_cols, dtype=float)
+        out.index = pd.DatetimeIndex([], name="date")
+        return out
+
+    df = df.copy()
+    if "date" not in df.columns:
+        df["date"] = df["start"].dt.date
+    df["date"] = pd.to_datetime(df["date"])
+    df["minutes"] = df["duration"].dt.total_seconds() / 60
+    df["sport"] = df["activity"].map(_sport_slug)
+
+    exercise = df[~df["sport"].isin(NON_EXERCISE_SPORTS)]
+    grouped = exercise.groupby("date")
+    daily = pd.DataFrame(
+        {
+            "count": grouped.size(),
+            "minutes": grouped["minutes"].sum(),
+            "strain": grouped["strain"].max(),
+            "kcal": grouped["energy_kcal"].sum(min_count=1),
+        },
+        index=pd.DatetimeIndex(sorted(df["date"].unique())),
+    )
+    # days with only non-exercise activities logged count as rest days
+    no_exercise = ~daily.index.isin(exercise["date"])
+    daily.loc[no_exercise, ["count", "minutes", "kcal"]] = 0
+
+    # Rank named columns among exercise sports only; recovery activities always
+    # keep their own column. Whoop has a sport literally named "other", which
+    # shares the catch-all bucket.
+    top = (
+        exercise[exercise["sport"] != "other"]
+        .groupby("sport")["minutes"]
+        .sum()
+        .sort_values(ascending=False)
+        .head(top_sports)
+    )
+    recovery = sorted(set(df["sport"]) & NON_EXERCISE_SPORTS)
+    named = list(top.index) + recovery
+    df.loc[~df["sport"].isin(named), "sport"] = "other"
+    per_sport = df.pivot_table(
+        index="date", columns="sport", values="minutes", aggfunc="sum", fill_value=0
+    )
+    ordered = [s for s in named if s in per_sport.columns]  # excludes "other"
+    if "other" in per_sport.columns:
+        ordered.append("other")
+    per_sport = per_sport[ordered]
+    per_sport.columns = [f"sport:{s}:minutes" for s in per_sport.columns]
+    daily = daily.join(per_sport)
+
+    full_range = pd.date_range(daily.index.min(), daily.index.max(), freq="D")
+    rest_days = full_range[~full_range.isin(daily.index)]
+    daily = daily.reindex(full_range)
+    zero_cols = [c for c in daily.columns if c != "strain"]
+    daily.loc[rest_days, zero_cols] = 0
+    daily["count"] = daily["count"].astype(int)
+    daily.index.name = "date"
+    return daily
+
+
+def load_workouts_daily_df(top_sports: int = 6) -> pd.DataFrame:
+    """Load daily workout summary (see :func:`workouts_to_daily_df`)."""
+    return workouts_to_daily_df(load_workouts_df(), top_sports=top_sports)

@@ -17,6 +17,7 @@ from ..load.location import load_daily_df as load_location_daily_df
 from ..load.qslang import load_daily_df as load_drugs_df
 from ..load.whoop import load_cycles_df as load_whoop_cycles_df
 from ..load.whoop import load_journal_daily_df as load_whoop_journal_daily_df
+from ..load.whoop import load_workouts_daily_df as load_whoop_workouts_daily_df
 from .heartrate import load_heartrate_summary_df
 from .screentime import load_category_df, load_screentime_cached
 from .sleep import load_sleep_df
@@ -26,12 +27,13 @@ logger = logging.getLogger(__name__)
 Sources = Literal[
     "screentime", "heartrate", "drugs", "location", "sleep", "journal", "cycles"
 ]
+ExerciseSources = Literal["workouts", "hevy", "steps"]
 
 
 def load_all_df(
     fast=True,
     screentime_events: list[Event] | None = None,
-    ignore: list[Sources] | None = None,
+    ignore: list[Sources | ExerciseSources] | None = None,
     days: int | None = None,
 ) -> pd.DataFrame:
     """
@@ -92,6 +94,46 @@ def load_all_df(
         else:
             df_cycles.index = pd.DatetimeIndex(df_cycles.index.date)  # type: ignore
             df = join(df, df_cycles.add_prefix("whoop:"))
+
+    if "workouts" not in ignore:
+        print(
+            "\n# Adding Whoop workouts (count, minutes, strain, kcal, per-sport minutes)"
+        )
+        try:
+            df_workouts = load_whoop_workouts_daily_df()
+        except (FileNotFoundError, NotImplementedError, KeyError) as e:
+            logger.warning(f"Skipping workouts source: {e}")
+        else:
+            df = join(df, df_workouts.add_prefix("workout:"))
+
+    if "hevy" not in ignore:
+        print("\n# Adding Hevy strength training")
+        from ..load.hevy import load_daily_df as load_hevy_daily_df
+
+        try:
+            df_hevy = load_hevy_daily_df()
+        except (FileNotFoundError, KeyError) as e:
+            # Optional source: KeyError when `data.hevy` isn't configured
+            logger.warning(f"Skipping hevy source: {e}")
+        else:
+            df = join(df, df_hevy.add_prefix("hevy:"))
+
+    if "steps" not in ignore:
+        print("\n# Adding steps (Home Assistant long-term statistics)")
+        from ..load.steps import load_daily_df as load_steps_daily_df
+
+        try:
+            # remote query: only fetch the requested window
+            steps_days = (datetime.now(tz=timezone.utc) - since).days + 1
+            df_steps = load_steps_daily_df(days=steps_days)
+        except (KeyError, FileNotFoundError, ImportError) as e:
+            # Optional source: KeyError when `data.steps` isn't configured
+            logger.warning(f"Skipping steps source: {e}")
+        except Exception as e:
+            # Network/auth failures shouldn't take down the whole daily frame
+            logger.warning(f"Skipping steps source, failed to fetch: {e!r}")
+        else:
+            df = join(df, df_steps)  # single `steps` column
 
     if "journal" not in ignore:
         print("\n# Adding journal (Whoop self-reports)")

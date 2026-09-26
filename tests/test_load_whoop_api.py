@@ -239,6 +239,7 @@ def test_workouts_to_df() -> None:
         "energy_kcal",
         "max_hr",
         "avg_hr",
+        "date",
     ]
     row = df.iloc[0]
     assert row["start"] == pd.Timestamp("2026-05-10 16:00:00", tz="UTC")
@@ -246,6 +247,18 @@ def test_workouts_to_df() -> None:
     assert row["activity"] == "running"
     assert row["strain"] == 9.5
     assert row["energy_kcal"] == pytest.approx(520, abs=1)
+    assert str(row["date"]) == "2026-05-10"
+
+
+def test_workouts_to_df_local_date_crosses_midnight() -> None:
+    """16:00Z would be the same UTC day, but 23:30Z at +02:00 is the next local day."""
+    workout = {
+        **WORKOUT,
+        "start": "2026-05-10T23:30:00.000Z",
+        "end": "2026-05-11T00:30:00.000Z",
+    }
+    df = _workouts_to_df([workout])
+    assert str(df.iloc[0]["date"]) == "2026-05-11"
 
 
 def test_zero_kilojoule_preserved() -> None:

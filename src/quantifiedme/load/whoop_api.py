@@ -435,8 +435,10 @@ def _workouts_to_df(records: list[dict[str, Any]]) -> pd.DataFrame:
         score = r.get("score") or {}
         start = pd.Timestamp(r["start"])
         end = pd.Timestamp(r["end"])
+        local_date = _local_date(r["start"], r.get("timezone_offset", "Z"))
         rows.append(
             {
+                "date": local_date.date(),
                 "start": start,
                 "end": end,
                 "duration": end - start,
@@ -447,20 +449,24 @@ def _workouts_to_df(records: list[dict[str, Any]]) -> pd.DataFrame:
                 "avg_hr": score.get("average_heart_rate"),
             }
         )
-    columns = [
-        "start",
-        "end",
-        "duration",
-        "activity",
-        "strain",
-        "energy_kcal",
-        "max_hr",
-        "avg_hr",
-    ]
+    columns = WORKOUT_COLUMNS
     if not rows:
         return pd.DataFrame(columns=columns)
     return pd.DataFrame(rows)[columns].sort_values("start").reset_index(drop=True)
 
+
+WORKOUT_COLUMNS = [
+    "start",
+    "end",
+    "duration",
+    "activity",
+    "strain",
+    "energy_kcal",
+    "max_hr",
+    "avg_hr",
+    # local calendar date of the workout start (for daily aggregation)
+    "date",
+]
 
 SLEEP_COLUMNS = [
     "score",

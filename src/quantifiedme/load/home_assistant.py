@@ -323,11 +323,12 @@ def aggregate_daily_features(
                 f"Expected one of {_VALID_AGGS}"
             )
 
-    series: dict[str, pd.Series] = {}
+    offset = timedelta(hours=date_offset_hours)
+    series_list: list[pd.Series] = []
     for feat in features:
         readings = pd.Series(df.loc[df["entity_id"] == feat.entity_id, "state"])
         if readings.empty:
-            series[feat.name] = pd.Series(dtype="float64")
+            series_list.append(pd.Series(name=feat.name, dtype="float64"))
             continue
         if date_offset_hours:
             readings = readings.copy()
@@ -340,11 +341,11 @@ def aggregate_daily_features(
         if feat.threshold is not None:
             # Boolean behavior; keep NaN where the day had no readings (not False).
             daily = daily.gt(feat.threshold).where(daily.notna())  # type: ignore[arg-type]
-        series[feat.name] = daily
+        series_list.append(daily.rename(feat.name))
 
-    # Use concat so each feature's full date range is preserved (column assignment
-    # would silently drop dates not present in the first feature's index).
-    result = pd.concat(series, axis=1) if series else pd.DataFrame()
+    # Use concat(axis=1) so indices are unioned — sequential column assignment would
+    # reindex later features to the first feature's (potentially shorter) date range.
+    result = pd.concat(series_list, axis=1) if series_list else pd.DataFrame()
     if not result.empty:
         result.index = pd.DatetimeIndex(pd.DatetimeIndex(result.index).date)
     result.index.name = "date"
@@ -515,8 +516,6 @@ def load_daily_df_from_statistics(
     """
     stats = load_statistics_export(Path(path), local_tz=local_tz)
     return aggregate_statistics_features(stats, features)
-
-
 def create_fake_sensor_df(
     start: str = "2024-01-01",
     end: str = "2024-12-31",

@@ -1,15 +1,10 @@
 import logging
-import sys
 from collections.abc import MutableMapping
 from pathlib import Path
 from typing import Any
 
 import platformdirs
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
+import tomllib
 
 logger = logging.getLogger(__name__)
 

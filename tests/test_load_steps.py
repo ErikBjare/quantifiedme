@@ -30,7 +30,17 @@ STATS: dict[str, list[dict[str, Any]]] = {
 
 def test_ws_url() -> None:
     assert _ws_url("https://ha.example.com/") == "wss://ha.example.com/api/websocket"
-    assert _ws_url("http://10.0.0.2:8123") == "ws://10.0.0.2:8123/api/websocket"
+    assert (
+        _ws_url("http://10.0.0.2:8123", allow_insecure=True)
+        == "ws://10.0.0.2:8123/api/websocket"
+    )
+
+
+def test_ws_url_refuses_plain_http_by_default() -> None:
+    with pytest.raises(ValueError, match="plain http"):
+        _ws_url("http://10.0.0.2:8123")
+    with pytest.raises(ValueError, match="scheme"):
+        _ws_url("ftp://ha.example.com")
 
 
 def test_statistics_to_daily_df_max_across_entities() -> None:

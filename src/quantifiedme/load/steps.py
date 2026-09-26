@@ -19,6 +19,7 @@ Configure in ``config.toml``::
     ha_url = "https://homeassistant.local:8123"
     # long-lived access token: read from $HA_TOKEN, else from this file
     ha_token_file = "~/.config/quantifiedme/ha_token"
+    # allow_insecure = true  # permit a plain http:// URL (token sent unencrypted)
     entities = ["sensor.phone_daily_steps", "sensor.watch_steps_sensor"]
 
 When several entities are configured (e.g. phone + watch), the daily value is
@@ -42,13 +43,20 @@ logger = logging.getLogger(__name__)
 DEFAULT_DAYS = 5 * 365
 
 
-def _ws_url(base_url: str) -> str:
+def _ws_url(base_url: str, allow_insecure: bool = False) -> str:
+    """HA base URL → websocket URL. Plain http is refused unless explicitly
+    allowed, since the access token is sent over the connection."""
     base = base_url.rstrip("/")
     if base.startswith("https://"):
-        base = "wss://" + base[len("https://") :]
-    elif base.startswith("http://"):
-        base = "ws://" + base[len("http://") :]
-    return base + "/api/websocket"
+        return "wss://" + base[len("https://") :] + "/api/websocket"
+    if base.startswith("http://"):
+        if not allow_insecure:
+            raise ValueError(
+                "Refusing to send the Home Assistant token over plain http; use an "
+                "https URL or set data.steps.allow_insecure = true"
+            )
+        return "ws://" + base[len("http://") :] + "/api/websocket"
+    raise ValueError(f"Unsupported Home Assistant URL scheme: {base_url}")
 
 
 def _load_token(cfg: dict[str, Any]) -> str:
@@ -71,6 +79,7 @@ def fetch_statistics(
     start: datetime,
     period: str = "day",
     types: tuple[str, ...] = ("change",),
+    allow_insecure: bool = False,
 ) -> tuple[dict[str, list[dict[str, Any]]], str]:
     """Fetch long-term statistics over the HA websocket API.
 
@@ -81,7 +90,7 @@ def fetch_statistics(
     """
     from websockets.sync.client import connect
 
-    with connect(_ws_url(url), max_size=None, open_timeout=30) as ws:
+    with connect(_ws_url(url, allow_insecure), max_size=None, open_timeout=30) as ws:
 
         def recv() -> dict[str, Any]:
             return json.loads(ws.recv(timeout=120))
@@ -164,7 +173,13 @@ def load_daily_df(days: int = DEFAULT_DAYS) -> pd.DataFrame:
     entities = list(cfg["entities"])
     token = _load_token(cfg)
     start = datetime.now(tz=timezone.utc) - timedelta(days=days)
-    stats, time_zone = fetch_statistics(cfg["ha_url"], token, entities, start)
+    stats, time_zone = fetch_statistics(
+        cfg["ha_url"],
+        token,
+        entities,
+        start,
+        allow_insecure=bool(cfg.get("allow_insecure", False)),
+    )
     missing = [e for e in entities if not stats.get(e)]
     if missing:
         logger.warning(f"No step statistics for: {missing}")

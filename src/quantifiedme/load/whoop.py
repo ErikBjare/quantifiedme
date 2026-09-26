@@ -495,8 +495,9 @@ def workouts_to_daily_df(df: pd.DataFrame, top_sports: int = 6) -> pd.DataFrame:
     - ``strain_max``: highest single-workout strain (Whoop strain is
       logarithmic, so summing across workouts is not meaningful)
     - ``energy_kcal``: total energy burned during workouts (kcal)
-    - ``minutes_<sport>``: minutes per sport, for the ``top_sports`` sports
-      with the most total minutes; remaining sports go into ``minutes_other``
+    - ``minutes_<sport>``: minutes per sport, for the ``top_sports`` exercise
+      sports with the most total minutes plus every recovery activity present;
+      remaining sports go into ``minutes_other``
 
     Recovery activities (sauna, ice bath, breathwork, ... see
     ``NON_EXERCISE_SPORTS``) are excluded from ``count``/``minutes``/
@@ -534,19 +535,23 @@ def workouts_to_daily_df(df: pd.DataFrame, top_sports: int = 6) -> pd.DataFrame:
     no_exercise = ~daily.index.isin(exercise["date"])
     daily.loc[no_exercise, ["count", "minutes", "energy_kcal"]] = 0
 
-    # Whoop has a sport literally named "other"; it shares the catch-all bucket
+    # Rank named columns among exercise sports only; recovery activities always
+    # keep their own column. Whoop has a sport literally named "other", which
+    # shares the catch-all bucket.
     top = (
-        df[df["sport"] != "other"]
+        exercise[exercise["sport"] != "other"]
         .groupby("sport")["minutes"]
         .sum()
         .sort_values(ascending=False)
         .head(top_sports)
     )
-    df.loc[~df["sport"].isin(top.index), "sport"] = "other"
+    recovery = sorted(set(df["sport"]) & NON_EXERCISE_SPORTS)
+    named = list(top.index) + recovery
+    df.loc[~df["sport"].isin(named), "sport"] = "other"
     per_sport = df.pivot_table(
         index="date", columns="sport", values="minutes", aggfunc="sum", fill_value=0
     )
-    ordered = [s for s in top.index if s in per_sport.columns]  # excludes "other"
+    ordered = [s for s in named if s in per_sport.columns]  # excludes "other"
     if "other" in per_sport.columns:
         ordered.append("other")
     per_sport = per_sport[ordered].add_prefix("minutes_")

@@ -450,6 +450,24 @@ def test_workouts_to_daily_df_sport_named_other_merges_into_bucket() -> None:
     assert daily.loc["2026-05-10", "minutes_other"] == 100
 
 
+def test_workouts_to_daily_df_recovery_keeps_named_column() -> None:
+    """Recovery activities don't compete for top-sport slots and keep their column."""
+    df = _workouts(
+        [
+            ("2026-05-10", "2026-05-10 06:00", 30, "Running", 8.0, 300.0),
+            ("2026-05-10", "2026-05-10 07:00", 20, "Yoga", 2.0, 50.0),
+            ("2026-05-10", "2026-05-10 19:00", 120, "Sauna", 1.0, 80.0),
+        ]
+    )
+    daily = workouts_to_daily_df(df, top_sports=1)
+    assert [c for c in daily.columns if c.startswith("minutes_")] == [
+        "minutes_running",
+        "minutes_sauna",
+        "minutes_other",
+    ]
+    assert daily.loc["2026-05-10", "minutes_other"] == 20
+
+
 def test_workouts_to_daily_df_excludes_recovery_from_totals() -> None:
     df = _workouts(
         [

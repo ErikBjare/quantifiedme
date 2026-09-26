@@ -123,7 +123,9 @@ def load_all_df(
         from ..load.steps import load_daily_df as load_steps_daily_df
 
         try:
-            df_steps = load_steps_daily_df()
+            # remote query: only fetch the requested window
+            steps_days = (datetime.now(tz=timezone.utc) - since).days + 1
+            df_steps = load_steps_daily_df(days=steps_days)
         except (KeyError, FileNotFoundError, ImportError) as e:
             # Optional source: KeyError when `data.steps` isn't configured
             logger.warning(f"Skipping steps source: {e}")

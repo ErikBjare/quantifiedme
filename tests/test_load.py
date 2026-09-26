@@ -134,7 +134,7 @@ def test_load_category_df_all_events():
         return Event(
             timestamp=ts,
             duration=timedelta(hours=hours),
-            data={"$tags": [cat], "$category_hierarchy": [cat]},
+            data={"$tags": [cat], "$category_hierarchy": cat, "$category_path": [cat]},
         )
 
     events = [

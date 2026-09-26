@@ -1,6 +1,7 @@
 import itertools
 import logging
 import os
+import sqlite3
 from datetime import (
     date,
     datetime,
@@ -13,6 +14,8 @@ import click
 import pandas as pd
 from aw_core import Event
 
+from ..config import load_config
+from ..load.home_assistant import load_daily_df as load_ha_daily_df
 from ..load.location import load_daily_df as load_location_daily_df
 from ..load.qslang import load_daily_df as load_drugs_df
 from ..load.whoop import load_cycles_df as load_whoop_cycles_df
@@ -25,7 +28,14 @@ from .sleep import load_sleep_df
 logger = logging.getLogger(__name__)
 
 Sources = Literal[
-    "screentime", "heartrate", "drugs", "location", "sleep", "journal", "cycles"
+    "screentime",
+    "heartrate",
+    "drugs",
+    "location",
+    "sleep",
+    "journal",
+    "cycles",
+    "home_assistant",
 ]
 ExerciseSources = Literal["workouts", "hevy", "steps"]
 
@@ -149,6 +159,22 @@ def load_all_df(
         else:
             df_journal.index = pd.DatetimeIndex(df_journal.index.date)  # type: ignore
             df = join(df, df_journal.add_prefix("journal:"))
+
+    if "home_assistant" not in ignore:
+        print("\n# Adding Home Assistant behaviors (sauna, CO2)")
+        # Optional source: only present when data.home_assistant is configured and
+        # the local HA SQLite DB exists. Skipped cleanly otherwise.
+        try:
+            _date_offset_hours = load_config().get("me", {}).get(
+                "date_offset_hours", 0
+            )
+            df_ha = load_ha_daily_df(date_offset_hours=_date_offset_hours)
+        except (FileNotFoundError, KeyError, sqlite3.Error) as e:
+            logger.warning(f"Skipping home_assistant source: {e}")
+        else:
+            if not df_ha.empty:
+                df_ha.index = pd.DatetimeIndex(df_ha.index.date)  # type: ignore
+                df = join(df, df_ha.add_prefix("ha:"))
 
     print()
 

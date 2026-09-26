@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 # aw-client > 0.5.15 ships multidevice query helpers (ActivityWatch/aw-client#121).
 # Until that is released, fall back to one aw-research query per desktop host.
 HAS_MULTIDEVICE = hasattr(aw_client.queries, "canonicalMultideviceEvents")
+# Typed as Any so type checking also passes against aw-client without the helpers
+_queries: Any = aw_client.queries
 
 # A host's buckets, as a hashable spec (also used as part of the cache key):
 #   ("desktop", hostname, bid_window, bid_afk, bid_browsers)
@@ -82,7 +84,7 @@ def discover_hosts(
     multidevice support and are skipped otherwise.
     """
     if HAS_MULTIDEVICE:
-        params = aw_client.queries.multideviceHostParams(buckets, hosts=hostnames)
+        params = _queries.multideviceHostParams(buckets, hosts=hostnames)
         specs: list[HostSpec] = []
         for p in params:
             if isinstance(p, aw_client.queries.DesktopQueryParams):
@@ -175,7 +177,7 @@ def load_events_multidevice(
     cache is invalidated whenever the set of hosts or their buckets change.
     """
     params = [_host_params(spec) for spec in hosts]
-    query = aw_client.queries.canonicalMultideviceEvents(params) + "\nRETURN = events;"
+    query = _queries.canonicalMultideviceEvents(params) + "\nRETURN = events;"
     logger.debug(f"Query:\n{query}")
 
     result = awc.query(query, timeperiods=[(since, end)])

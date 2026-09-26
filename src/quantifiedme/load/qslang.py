@@ -46,11 +46,14 @@ def load_df(events: list[Event] | None = None) -> pd.DataFrame:
     events = list(events)
     # Keyed on a hash of the events rather than the events themselves: joblib
     # stores the repr of arguments next to each cache entry.
-    return _load_df(joblib.hash(events), events)
+    date_offset_hours = load_config()["me"]["date_offset_hours"]
+    return _load_df(joblib.hash(events), date_offset_hours, events)
 
 
 @memory.cache(ignore=["events"])
-def _load_df(events_hash: str, events: list[Event]) -> pd.DataFrame:
+def _load_df(
+    events_hash: str, date_offset_hours: float, events: list[Event]
+) -> pd.DataFrame:
 
     with DuplicateFilter(logger):
         for e in events:
@@ -82,7 +85,7 @@ def _load_df(events_hash: str, events: list[Event]) -> pd.DataFrame:
             except pint.UndefinedUnitError as e:
                 logger.warning(e)
 
-    date_offset = timedelta(hours=load_config()["me"]["date_offset_hours"])
+    date_offset = timedelta(hours=date_offset_hours)
 
     df = pd.DataFrame(
         [

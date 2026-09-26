@@ -1,7 +1,9 @@
 import hashlib
 import json
 import logging
+import os
 import pickle
+import tempfile
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -223,10 +225,10 @@ def screentime_cache_key(
 ) -> str:
     """Key for the screentime event cache.
 
-    Covers everything that changes the cached (categorized) events: the category
-    rules, the datasources, the ActivityWatch host settings and the hosts they
-    resolve to (so a newly discovered device invalidates the cache), and
-    :data:`CACHE_VERSION`.
+    Covers the configuration that changes the cached (categorized) events: the
+    category rules, the datasources, the ActivityWatch host settings, and
+    :data:`CACHE_VERSION`. The discovered hosts are checked separately (see
+    :func:`_discover_hosts_for_cache`), so a fresh cache still works offline.
     """
     config = load_config(use_example=not personal)
     datasources = _resolve_datasources(config, datasources)
@@ -244,32 +246,52 @@ def screentime_cache_key(
             for k in ("port", "hostnames", "exclude_hostnames", "include_mobile")
         },
     }
-    if "activitywatch" in datasources:
-        try:
-            awc = awc or _get_aw_client(not personal)
-            hosts = _discover_aw_hosts(awc, config, hostnames)
-            # sorted: discovery orders hosts by most recent activity, which
-            # changes whenever another device is used
-            parts["hosts"] = sorted(json.dumps(h) for h in hosts)
-        except Exception as e:
-            # can't reach aw-server: key on the host settings alone
-            logger.warning(f"Failed to discover ActivityWatch hosts: {e}")
     if "smartertime_buckets" in datasources:
         parts["smartertime_buckets"] = config["data"]["smartertime_buckets"]
     blob = json.dumps(parts, sort_keys=True, default=str)
     return hashlib.sha256(blob.encode()).hexdigest()[:16]
 
 
-def _read_cache(path: Path, since: datetime) -> list[Event] | None:
-    """Return the cached raw events if the cache is fresh and covers `since`."""
+def _discover_hosts_for_cache(
+    datasources: list[DatasourceType] | None,
+    hostnames: list[str] | None,
+    personal: bool,
+    awc: ActivityWatchClient | None,
+) -> list[str] | None:
+    """The ActivityWatch hosts a load would use, or None if unknown.
+
+    Stored with the cache, so a newly discovered device invalidates it. None if
+    ActivityWatch isn't a datasource or aw-server can't be reached (then a fresh
+    cache is reused as is).
+    """
+    config = load_config(use_example=not personal)
+    if "activitywatch" not in _resolve_datasources(config, datasources):
+        return None
+    try:
+        hosts = _discover_aw_hosts(
+            awc or _get_aw_client(not personal), config, hostnames
+        )
+    except Exception as e:
+        logger.warning(f"Failed to discover ActivityWatch hosts: {e}")
+        return None
+    # sorted: discovery orders hosts by most recent activity, which changes
+    # whenever another device is used
+    return sorted(json.dumps(h) for h in hosts)
+
+
+def _read_cache(
+    path: Path, since: datetime, hosts: list[str] | None
+) -> list[Event] | None:
+    """Return the cached events if fresh, covering `since`, and for the same hosts."""
     if not path.exists():
         return None
     if datetime.now() - datetime.fromtimestamp(path.stat().st_mtime) > CACHE_TTL:
         return None
     with open(path, "rb") as f:
         cached = pickle.load(f)
-    # The query start moves with the clock, so allow for it within the TTL.
-    if cached["since"] > since + CACHE_TTL:
+    if cached["since"] > since:
+        return None
+    if hosts is not None and cached["hosts"] is not None and cached["hosts"] != hosts:
         return None
     print(f"Loading from cache: {path}")
     return cached["events"]
@@ -291,9 +313,9 @@ def load_screentime_cached(
 ) -> list[Event]:
     """Like :func:`load_screentime`, but reuses events cached within the last day.
 
-    The cache holds categorized events, keyed by :func:`screentime_cache_key`, so
-    changing the category rules, datasources or hosts loads fresh events rather
-    than reusing stale ones. (Categorizing is too slow to redo on every load:
+    The cache holds categorized events, keyed by :func:`screentime_cache_key` and
+    checked against the discovered hosts, so changing the category rules,
+    datasources or hosts loads fresh events rather than reusing stale ones. (Categorizing is too slow to redo on every load:
     O(events x rules). Re-fetching is mostly served by the per-week joblib cache
     in ``load.activitywatch``.) ``fast`` loads (a short range, used
     by :func:`load_all_df`) get their own cache file so they don't evict the full
@@ -310,19 +332,23 @@ def load_screentime_cached(
         kwargs.get("awc"),
         rules,
     )
+    hosts = _discover_hosts_for_cache(
+        kwargs.get("datasources"), kwargs.get("hostnames"), personal, kwargs.get("awc")
+    )
     path = _cache_file(fast, key)
     candidates = [path, _cache_file(False, key)] if fast else [path]
     for candidate in candidates:
-        events = _read_cache(candidate, since)
+        events = _read_cache(candidate, since, hosts)
         if events is not None:
             return [e for e in events if e.timestamp >= since]
 
     events = classify(_load_screentime_raw(since=since, **kwargs), personal, rules)
     cache_dir.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    with open(tmp, "wb") as f:
-        pickle.dump({"since": since, "events": events}, f)
-    tmp.replace(path)
+    # write to a unique temp file and rename, so concurrent loads can't corrupt it
+    fd, tmp = tempfile.mkstemp(dir=cache_dir, prefix=f"{path.name}.", suffix=".tmp")
+    with os.fdopen(fd, "wb") as f:
+        pickle.dump({"since": since, "hosts": hosts, "events": events}, f)
+    os.replace(tmp, path)
     _cleanup_cache(fast, keep=path)
     return events
 

@@ -103,12 +103,25 @@ def test_hostnames_argument_changes_key(env):
     )
 
 
-def test_discovered_hosts_change_key_but_not_their_order(env):
-    key = screentime.screentime_cache_key()
+def test_new_discovered_host_reloads_but_host_order_does_not(env):
+    screentime.load_screentime_cached(since=_since(30))
     env["hosts"] = list(reversed(env["hosts"]))
-    assert screentime.screentime_cache_key() == key
+    screentime.load_screentime_cached(since=_since(30))
+    assert env["loads"] == 1
     env["hosts"] = env["hosts"] + [("desktop", "new", "w-new", "a-new", ())]
-    assert screentime.screentime_cache_key() != key
+    screentime.load_screentime_cached(since=_since(30))
+    assert env["loads"] == 2
+
+
+def test_fresh_cache_used_when_server_unreachable(env, monkeypatch):
+    screentime.load_screentime_cached(since=_since(30))
+
+    def unreachable(awc, config, hn):
+        raise ConnectionError
+
+    monkeypatch.setattr(screentime, "_discover_aw_hosts", unreachable)
+    screentime.load_screentime_cached(since=_since(30))
+    assert env["loads"] == 1
 
 
 def test_cache_version_changes_key(env, monkeypatch):
@@ -154,7 +167,8 @@ def test_since_not_covered_reloads(env):
     events = screentime.load_screentime_cached(since=_since(10))
     assert env["loads"] == 1
     assert all(e.timestamp >= _since(10) for e in events)
-    screentime.load_screentime_cached(since=_since(30))
+    # even slightly earlier than the cached start is not covered
+    screentime.load_screentime_cached(since=_since(10) - timedelta(hours=1))
     assert env["loads"] == 2
 
 

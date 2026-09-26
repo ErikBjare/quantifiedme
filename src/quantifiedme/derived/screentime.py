@@ -192,13 +192,24 @@ def _category_tags(names: list[list[str]]) -> dict[tuple[str, ...], str]:
     (the web UI allows names like '"Social"').
     """
     paths = [tuple(n.strip('"') for n in name) for name in names]
-    tags = {}
+    tags: dict[tuple[str, ...], str] = {}
+    used: set[str] = set()
     for orig, path in zip(names, paths, strict=True):
+        tag = None
         for n in range(1, len(path) + 1):
-            suffix = path[-n:]
-            if sum(1 for p in paths if p[-n:] == suffix) == 1 or n == len(path):
-                tags[tuple(orig)] = ">".join(suffix)
+            # compare the joined strings, since names may themselves contain ">"
+            cand = ">".join(path[-n:])
+            if cand not in used and sum(">".join(p[-n:]) == cand for p in paths) == 1:
+                tag = cand
                 break
+        if tag is None:
+            tag = ">".join(path)
+            i = 2
+            while f"{tag}#{i}" in used or tag in used:
+                tag = f"{'>'.join(path)}#{i}"
+                i += 1
+        used.add(tag)
+        tags[tuple(orig)] = tag
     return tags
 
 

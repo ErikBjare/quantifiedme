@@ -112,7 +112,9 @@ def build_substance_features(
         features[f"decay:{substance}:today"] = df[col].fillna(0)
 
         # Decay kernel (accumulated exposure)
-        features[f"decay:{substance}:kernel"] = decay_kernel(df[col], tau=tau, window=window)
+        features[f"decay:{substance}:kernel"] = decay_kernel(
+            df[col], tau=tau, window=window
+        )
 
         # Simple trailing sum (how many of past N days)
         features[f"decay:{substance}:count_{window}d"] = (
@@ -140,30 +142,32 @@ def build_screentime_features(
     if lag_days is None:
         lag_days = [1, 2, 3, 7]
 
-    # Key categories worth modeling (high variance, meaningful)
-    key_categories = [
-        "time:Work",
-        "time:Programming",
-        "time:Media",
-        "time:Social Media",
-        "time:Games",
-    ]
+    # Key categories worth modeling (high variance, meaningful), each with the
+    # column names it has under different category rulesets: aw-research TOML
+    # first, then aw-server categories (see derived.screentime._category_tags).
+    key_categories = {
+        "Work": ["time:Work"],
+        "Programming": ["time:Programming"],
+        "Media": ["time:Media"],
+        "Social Media": ["time:Social Media", "time:Social"],
+        "Games": ["time:Games", "time:Media>Games"],
+    }
 
     # Filter to categories that exist in the data, excluding the target
     # (AR features handle the target with more comprehensive rolling stats)
-    available = [c for c in key_categories if c in df.columns and c != exclude_col]
+    available = {}
+    for name, cols in key_categories.items():
+        col = next((c for c in cols if c in df.columns), None)
+        if col is not None and col != exclude_col:
+            available[name] = col
     features = pd.DataFrame(index=df.index)
 
-    for col in available:
-        name = col.removeprefix("time:")
-
+    for name, col in available.items():
         for lag in lag_days:
             features[f"lag:{name}:d-{lag}"] = df[col].shift(lag)
 
         # 7-day rolling mean
-        features[f"roll:{name}:7d_mean"] = (
-            df[col].rolling(7, min_periods=1).mean()
-        )
+        features[f"roll:{name}:7d_mean"] = df[col].rolling(7, min_periods=1).mean()
 
         # 7-day rolling std (consistency/volatility)
         features[f"roll:{name}:7d_std"] = (
@@ -226,7 +230,9 @@ def build_autoregressive_features(
 
     # Rolling statistics
     features[f"ar:{name}:7d_mean"] = df[target_col].rolling(7, min_periods=1).mean()
-    features[f"ar:{name}:7d_std"] = df[target_col].rolling(7, min_periods=1).std().fillna(0)
+    features[f"ar:{name}:7d_std"] = (
+        df[target_col].rolling(7, min_periods=1).std().fillna(0)
+    )
     features[f"ar:{name}:14d_mean"] = df[target_col].rolling(14, min_periods=1).mean()
 
     return features

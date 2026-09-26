@@ -17,8 +17,10 @@ through Home Assistant — current and future sensors automatically included.
 
 import sqlite3
 from contextlib import closing
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
@@ -240,6 +242,137 @@ def load_sensor_df_api(
     df = _clean_df(pd.DataFrame(rows))
     df["unit"] = df["entity_id"].map(units) if units is not None else None
     return df
+
+
+@dataclass
+class DailyFeature:
+    """Spec for aggregating one raw HA sensor into a single daily behavior/feature column.
+
+    Args:
+        name: Output column name (e.g. ``"sauna"``, ``"bedroom_co2"``).
+        entity_id: Source HA entity to aggregate.
+        agg: Daily aggregation applied to the sensor's readings for each day.
+             One of ``"max"``, ``"min"``, ``"mean"``, ``"sum"``.
+        threshold: If set, the daily aggregate is compared against this value and
+                   the output column is a boolean behavior (``agg(day) > threshold``).
+                   Days with no readings stay NaN (unknown), never False.
+    """
+
+    name: str
+    entity_id: str
+    agg: str = "mean"
+    threshold: float | None = None
+
+
+# Confirmed against Erik's HA long-term statistics (2026-09-24):
+# - sensor.sauna_probe_temperature has 384 daily rows back to 2025-08-19;
+#   daily max > 60 °C flags a sauna session (threshold stable at 50/60/70 °C).
+#   NB: sensor.sauna_temperature is an *ambient/room* sensor (never > 30 °C) — do not use it.
+# - sensor.s1_pro_multi_sense_e8b4cc_scd40_co2_concentration is an NDIR (SCD40) CO2
+#   reading; shorter coverage (~44 days as of 2026-09-24), going-forward feature.
+DEFAULT_DAILY_FEATURES: list[DailyFeature] = [
+    DailyFeature(
+        name="sauna",
+        entity_id="sensor.sauna_probe_temperature",
+        agg="max",
+        threshold=60.0,
+    ),
+    DailyFeature(
+        name="bedroom_co2",
+        entity_id="sensor.s1_pro_multi_sense_e8b4cc_scd40_co2_concentration",
+        agg="mean",
+    ),
+]
+
+_VALID_AGGS = {"max", "min", "mean", "sum"}
+
+
+def aggregate_daily_features(
+    df: pd.DataFrame,
+    features: list[DailyFeature] | None = None,
+    date_offset_hours: float = 0,
+) -> pd.DataFrame:
+    """Aggregate raw HA sensor readings into a daily behavior/feature DataFrame.
+
+    Takes the long per-reading format produced by :func:`load_sensor_df` /
+    :func:`load_sensor_df_api` (timestamp index, ``entity_id`` + ``state`` columns)
+    and resamples each configured sensor to one value per local day. Boolean behaviors
+    (``threshold`` set) preserve NaN on days with no readings rather than emitting False.
+
+    Args:
+        df: Long-format sensor DataFrame (UTC DatetimeIndex, ``entity_id`` + ``state``).
+        features: Feature specs to compute. Defaults to :data:`DEFAULT_DAILY_FEATURES`.
+        date_offset_hours: Hours to subtract from UTC timestamps before computing daily
+            boundaries, matching ``config["me"]["date_offset_hours"]``. Defaults to 0
+            (UTC midnight boundaries). Pass the same offset used by the drug/event
+            loaders so daily rows align correctly.
+
+    Returns:
+        DataFrame indexed by date (midnight-normalized DatetimeIndex) with one column
+        per feature. Sensors absent from ``df`` yield an all-NaN column. Indices are
+        the union of all per-feature date ranges so no feature's dates are dropped.
+    """
+    if features is None:
+        features = DEFAULT_DAILY_FEATURES
+
+    for feat in features:
+        if feat.agg not in _VALID_AGGS:
+            raise ValueError(
+                f"Unsupported agg {feat.agg!r} for feature {feat.name!r}. "
+                f"Expected one of {_VALID_AGGS}"
+            )
+
+    offset = timedelta(hours=date_offset_hours)
+    series_list: list[pd.Series] = []
+    for feat in features:
+        readings = pd.Series(df.loc[df["entity_id"] == feat.entity_id, "state"])
+        if readings.empty:
+            series_list.append(pd.Series(name=feat.name, dtype="float64"))
+            continue
+        if date_offset_hours:
+            readings = readings.copy()
+            readings.index = pd.DatetimeIndex(readings.index) - offset
+        daily_count = readings.resample("D").count()
+        daily = cast(pd.Series, readings.resample("D").agg(feat.agg))
+        # Preserve NaN on days with no readings (resample sum returns 0 for empty
+        # buckets, which would be indistinguishable from a real zero-sum day).
+        daily = daily.where(daily_count > 0)
+        if feat.threshold is not None:
+            # Boolean behavior; keep NaN where the day had no readings (not False).
+            daily = daily.gt(feat.threshold).where(daily.notna())  # type: ignore[arg-type]
+        series_list.append(daily.rename(feat.name))
+
+    # Use concat(axis=1) so indices are unioned — sequential column assignment would
+    # reindex later features to the first feature's (potentially shorter) date range.
+    result = pd.concat(series_list, axis=1) if series_list else pd.DataFrame()
+    if not result.empty:
+        result.index = pd.DatetimeIndex(pd.DatetimeIndex(result.index).date)
+    result.index.name = "date"
+    return result
+
+
+def load_daily_df(
+    path: Path | None = None,
+    features: list[DailyFeature] | None = None,
+    date_offset_hours: float = 0,
+) -> pd.DataFrame:
+    """Load daily HA behavior features (sauna, CO2, …) from the local HA SQLite DB.
+
+    Convenience wrapper: reads only the sensors referenced by ``features`` and
+    aggregates them via :func:`aggregate_daily_features`. Intended for
+    :func:`quantifiedme.derived.all_df.load_all_df` (joined under the ``ha:`` prefix).
+
+    Note: HA purges the raw ``states`` table after ``purge_keep_days`` (~10 days by
+    default), so this covers recent days only. For the full sauna history
+    (384 days back to 2025-08-19) feed long-term statistics through
+    :func:`aggregate_daily_features` — the ``max`` statistics column maps to a
+    ``agg="max"`` threshold behavior.
+    """
+    if features is None:
+        features = DEFAULT_DAILY_FEATURES
+    entity_ids = sorted({f.entity_id for f in features})
+    df = load_sensor_df(path=path, entity_ids=entity_ids)
+    return aggregate_daily_features(df, features, date_offset_hours=date_offset_hours)
 
 
 def create_fake_sensor_df(

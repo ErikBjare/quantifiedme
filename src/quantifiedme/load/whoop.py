@@ -534,8 +534,10 @@ def workouts_to_daily_df(df: pd.DataFrame, top_sports: int = 6) -> pd.DataFrame:
     no_exercise = ~daily.index.isin(exercise["date"])
     daily.loc[no_exercise, ["count", "minutes", "energy_kcal"]] = 0
 
+    # Whoop has a sport literally named "other"; it shares the catch-all bucket
     top = (
-        df.groupby("sport")["minutes"]
+        df[df["sport"] != "other"]
+        .groupby("sport")["minutes"]
         .sum()
         .sort_values(ascending=False)
         .head(top_sports)
@@ -544,7 +546,7 @@ def workouts_to_daily_df(df: pd.DataFrame, top_sports: int = 6) -> pd.DataFrame:
     per_sport = df.pivot_table(
         index="date", columns="sport", values="minutes", aggfunc="sum", fill_value=0
     )
-    ordered = [s for s in top.index if s in per_sport.columns]
+    ordered = [s for s in top.index if s in per_sport.columns]  # excludes "other"
     if "other" in per_sport.columns:
         ordered.append("other")
     per_sport = per_sport[ordered].add_prefix("minutes_")

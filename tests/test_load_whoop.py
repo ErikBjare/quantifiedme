@@ -432,6 +432,24 @@ def test_workouts_to_daily_df_top_sports_other_bucket() -> None:
     assert daily.loc["2026-05-10", "minutes_other"] == 30
 
 
+def test_workouts_to_daily_df_sport_named_other_merges_into_bucket() -> None:
+    """Whoop has a sport literally called "other": it must not yield a duplicate column."""
+    df = _workouts(
+        [
+            ("2026-05-10", "2026-05-10 06:00", 90, "Other", 5.0, 300.0),
+            ("2026-05-10", "2026-05-10 08:00", 20, "Yoga", 2.0, 50.0),
+            ("2026-05-10", "2026-05-10 09:00", 10, "Walking", 1.0, 30.0),
+        ]
+    )
+    daily = workouts_to_daily_df(df, top_sports=1)
+    assert not daily.columns.duplicated().any()
+    assert [c for c in daily.columns if c.startswith("minutes_")] == [
+        "minutes_yoga",
+        "minutes_other",
+    ]
+    assert daily.loc["2026-05-10", "minutes_other"] == 100
+
+
 def test_workouts_to_daily_df_excludes_recovery_from_totals() -> None:
     df = _workouts(
         [

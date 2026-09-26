@@ -399,16 +399,16 @@ def test_workouts_to_daily_df() -> None:
     d1 = daily.loc["2026-05-10"]
     assert d1["count"] == 2
     assert d1["minutes"] == 90
-    assert d1["strain_max"] == 10.0  # max, not sum (strain is logarithmic)
-    assert d1["energy_kcal"] == 700
+    assert d1["strain"] == 10.0  # max, not sum (strain is logarithmic)
+    assert d1["kcal"] == 700
     # sport names are slugified, so "Running" and "running" merge
-    assert d1["minutes_running"] == 60
-    assert d1["minutes_weightlifting"] == 30
-    assert daily.loc["2026-05-12", "minutes_running"] == 45
+    assert d1["sport:running:minutes"] == 60
+    assert d1["sport:weightlifting:minutes"] == 30
+    assert daily.loc["2026-05-12", "sport:running:minutes"] == 45
 
     rest = daily.loc["2026-05-11"]
-    assert rest["count"] == 0 and rest["minutes"] == 0 and rest["energy_kcal"] == 0
-    assert pd.isna(rest["strain_max"])
+    assert rest["count"] == 0 and rest["minutes"] == 0 and rest["kcal"] == 0
+    assert pd.isna(rest["strain"])
 
 
 def test_workouts_to_daily_df_uses_local_date() -> None:
@@ -427,9 +427,9 @@ def test_workouts_to_daily_df_top_sports_other_bucket() -> None:
         ]
     )
     daily = workouts_to_daily_df(df, top_sports=1)
-    sport_cols = [c for c in daily.columns if c.startswith("minutes_")]
-    assert sport_cols == ["minutes_running", "minutes_other"]
-    assert daily.loc["2026-05-10", "minutes_other"] == 30
+    sport_cols = [c for c in daily.columns if c.startswith("sport:")]
+    assert sport_cols == ["sport:running:minutes", "sport:other:minutes"]
+    assert daily.loc["2026-05-10", "sport:other:minutes"] == 30
 
 
 def test_workouts_to_daily_df_sport_named_other_merges_into_bucket() -> None:
@@ -443,11 +443,11 @@ def test_workouts_to_daily_df_sport_named_other_merges_into_bucket() -> None:
     )
     daily = workouts_to_daily_df(df, top_sports=1)
     assert not daily.columns.duplicated().any()
-    assert [c for c in daily.columns if c.startswith("minutes_")] == [
-        "minutes_yoga",
-        "minutes_other",
+    assert [c for c in daily.columns if c.startswith("sport:")] == [
+        "sport:yoga:minutes",
+        "sport:other:minutes",
     ]
-    assert daily.loc["2026-05-10", "minutes_other"] == 100
+    assert daily.loc["2026-05-10", "sport:other:minutes"] == 100
 
 
 def test_workouts_to_daily_df_recovery_keeps_named_column() -> None:
@@ -460,12 +460,12 @@ def test_workouts_to_daily_df_recovery_keeps_named_column() -> None:
         ]
     )
     daily = workouts_to_daily_df(df, top_sports=1)
-    assert [c for c in daily.columns if c.startswith("minutes_")] == [
-        "minutes_running",
-        "minutes_sauna",
-        "minutes_other",
+    assert [c for c in daily.columns if c.startswith("sport:")] == [
+        "sport:running:minutes",
+        "sport:sauna:minutes",
+        "sport:other:minutes",
     ]
-    assert daily.loc["2026-05-10", "minutes_other"] == 20
+    assert daily.loc["2026-05-10", "sport:other:minutes"] == 20
 
 
 def test_workouts_to_daily_df_excludes_recovery_from_totals() -> None:
@@ -478,19 +478,19 @@ def test_workouts_to_daily_df_excludes_recovery_from_totals() -> None:
     )
     daily = workouts_to_daily_df(df)
     d1 = daily.loc["2026-05-10"]
-    assert d1["count"] == 1 and d1["minutes"] == 60 and d1["energy_kcal"] == 500
-    assert d1["minutes_sauna"] == 20
+    assert d1["count"] == 1 and d1["minutes"] == 60 and d1["kcal"] == 500
+    assert d1["sport:sauna:minutes"] == 20
     # a sauna-only day has no exercise, but its sauna minutes are kept
     d2 = daily.loc["2026-05-11"]
-    assert d2["count"] == 0 and d2["minutes"] == 0 and d2["energy_kcal"] == 0
-    assert pd.isna(d2["strain_max"])
-    assert d2["minutes_sauna"] == 20
+    assert d2["count"] == 0 and d2["minutes"] == 0 and d2["kcal"] == 0
+    assert pd.isna(d2["strain"])
+    assert d2["sport:sauna:minutes"] == 20
 
 
 def test_workouts_to_daily_df_empty() -> None:
     daily = workouts_to_daily_df(_workouts([]))
     assert daily.empty
-    assert {"count", "minutes", "strain_max", "energy_kcal"} <= set(daily.columns)
+    assert {"count", "minutes", "strain", "kcal"} <= set(daily.columns)
 
 
 def test_load_workouts_daily_df_from_standard_export(patched_whoop_dir: Path) -> None:
@@ -499,5 +499,5 @@ def test_load_workouts_daily_df_from_standard_export(patched_whoop_dir: Path) ->
     row = daily.iloc[0]
     assert row["count"] == 1
     assert row["minutes"] == 60
-    assert row["energy_kcal"] == 520
-    assert row["minutes_running"] == 60
+    assert row["kcal"] == 520
+    assert row["sport:running:minutes"] == 60

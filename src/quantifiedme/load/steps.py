@@ -131,7 +131,7 @@ def fetch_statistics(
 def statistics_to_daily_df(
     stats: dict[str, list[dict[str, Any]]], time_zone: str
 ) -> pd.DataFrame:
-    """Daily ``change`` statistics → DataFrame with one ``count`` column.
+    """Daily ``change`` statistics → DataFrame with one ``steps`` column.
 
     Index: local calendar date (naive ``DatetimeIndex``). Value: max across
     entities of the day's step count. Zero changes (the sensor didn't report,
@@ -155,13 +155,13 @@ def statistics_to_daily_df(
         frames.append(pd.Series(df["change"].to_numpy(), index=dates, name=sid))
 
     if not frames:
-        out = pd.DataFrame(columns=["count"], dtype=float)
+        out = pd.DataFrame(columns=["steps"], dtype=float)
         out.index = pd.DatetimeIndex([], name="date")
         return out
 
     wide = pd.concat(frames, axis=1)
     wide = wide.where(wide > 0)
-    daily = wide.max(axis=1).dropna().to_frame("count")
+    daily = wide.max(axis=1).dropna().to_frame("steps")
     daily.index.name = "date"
     return daily.sort_index()
 

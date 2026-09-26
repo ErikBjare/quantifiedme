@@ -492,22 +492,22 @@ def workouts_to_daily_df(df: pd.DataFrame, top_sports: int = 6) -> pd.DataFrame:
 
     - ``count``: number of exercise workouts
     - ``minutes``: total exercise duration (minutes)
-    - ``strain_max``: highest single-workout strain (Whoop strain is
+    - ``strain``: highest single-workout strain (Whoop strain is
       logarithmic, so summing across workouts is not meaningful)
-    - ``energy_kcal``: total energy burned during workouts (kcal)
-    - ``minutes_<sport>``: minutes per sport, for the ``top_sports`` exercise
+    - ``kcal``: total energy burned during workouts (kcal)
+    - ``sport:<sport>:minutes``: minutes per sport, for the ``top_sports`` exercise
       sports with the most total minutes plus every recovery activity present;
-      remaining sports go into ``minutes_other``
+      remaining sports go into ``sport:other:minutes``
 
     Recovery activities (sauna, ice bath, breathwork, ... see
     ``NON_EXERCISE_SPORTS``) are excluded from ``count``/``minutes``/
-    ``strain_max``/``energy_kcal`` but still get per-sport minute columns.
+    ``strain``/``kcal`` but still get per-sport minute columns.
 
     Days between the first and last workout without any workout get 0 for the
-    count/duration/energy columns (and NaN for ``strain_max``), so rest days
+    count/duration/energy columns (and NaN for ``strain``), so rest days
     are distinguishable from days outside the data range.
     """
-    base_cols = ["count", "minutes", "strain_max", "energy_kcal"]
+    base_cols = ["count", "minutes", "strain", "kcal"]
     if df.empty:
         out = pd.DataFrame(columns=base_cols, dtype=float)
         out.index = pd.DatetimeIndex([], name="date")
@@ -526,14 +526,14 @@ def workouts_to_daily_df(df: pd.DataFrame, top_sports: int = 6) -> pd.DataFrame:
         {
             "count": grouped.size(),
             "minutes": grouped["minutes"].sum(),
-            "strain_max": grouped["strain"].max(),
-            "energy_kcal": grouped["energy_kcal"].sum(min_count=1),
+            "strain": grouped["strain"].max(),
+            "kcal": grouped["energy_kcal"].sum(min_count=1),
         },
         index=pd.DatetimeIndex(sorted(df["date"].unique())),
     )
     # days with only non-exercise activities logged count as rest days
     no_exercise = ~daily.index.isin(exercise["date"])
-    daily.loc[no_exercise, ["count", "minutes", "energy_kcal"]] = 0
+    daily.loc[no_exercise, ["count", "minutes", "kcal"]] = 0
 
     # Rank named columns among exercise sports only; recovery activities always
     # keep their own column. Whoop has a sport literally named "other", which
@@ -554,13 +554,14 @@ def workouts_to_daily_df(df: pd.DataFrame, top_sports: int = 6) -> pd.DataFrame:
     ordered = [s for s in named if s in per_sport.columns]  # excludes "other"
     if "other" in per_sport.columns:
         ordered.append("other")
-    per_sport = per_sport[ordered].add_prefix("minutes_")
+    per_sport = per_sport[ordered]
+    per_sport.columns = [f"sport:{s}:minutes" for s in per_sport.columns]
     daily = daily.join(per_sport)
 
     full_range = pd.date_range(daily.index.min(), daily.index.max(), freq="D")
     rest_days = full_range[~full_range.isin(daily.index)]
     daily = daily.reindex(full_range)
-    zero_cols = [c for c in daily.columns if c != "strain_max"]
+    zero_cols = [c for c in daily.columns if c != "strain"]
     daily.loc[rest_days, zero_cols] = 0
     daily["count"] = daily["count"].astype(int)
     daily.index.name = "date"

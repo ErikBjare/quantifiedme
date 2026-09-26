@@ -133,7 +133,7 @@ def load_all_df(
             # Network/auth failures shouldn't take down the whole daily frame
             logger.warning(f"Skipping steps source, failed to fetch: {e!r}")
         else:
-            df = join(df, df_steps.add_prefix("steps:"))
+            df = join(df, df_steps)  # single `steps` column
 
     if "journal" not in ignore:
         print("\n# Adding journal (Whoop self-reports)")

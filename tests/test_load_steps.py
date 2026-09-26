@@ -45,25 +45,25 @@ def test_ws_url_refuses_plain_http_by_default() -> None:
 
 def test_statistics_to_daily_df_max_across_entities() -> None:
     daily = statistics_to_daily_df(STATS, "Europe/Stockholm")
-    assert list(daily.columns) == ["count"]
+    assert list(daily.columns) == ["steps"]
     assert daily.index.name == "date"
     # local-midnight starts map to the local calendar date, not the UTC date
     assert list(daily.index) == [pd.Timestamp("2026-03-03"), pd.Timestamp("2026-03-04")]
-    assert daily.loc["2026-03-03", "count"] == 9500  # max, not sum
-    assert daily.loc["2026-03-04", "count"] == 3000  # negative glitch ignored
+    assert daily.loc["2026-03-03", "steps"] == 9500  # max, not sum
+    assert daily.loc["2026-03-04", "steps"] == 3000  # negative glitch ignored
     assert pd.Timestamp("2026-03-05") not in daily.index  # 0 = not reporting
 
 
 def test_statistics_to_daily_df_iso_start() -> None:
     stats = {"sensor.x": [{"start": "2026-03-02T23:00:00+00:00", "change": 42.0}]}
     daily = statistics_to_daily_df(stats, "Europe/Stockholm")
-    assert daily.loc["2026-03-03", "count"] == 42
+    assert daily.loc["2026-03-03", "steps"] == 42
 
 
 def test_statistics_to_daily_df_empty() -> None:
     daily = statistics_to_daily_df({"sensor.x": []}, "UTC")
     assert daily.empty
-    assert "count" in daily.columns
+    assert "steps" in daily.columns
 
 
 class FakeWebSocket:
@@ -154,7 +154,7 @@ def test_load_daily_df(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
 
     daily = steps.load_daily_df()
     assert ws.sent[0]["access_token"] == "secret"
-    assert daily.loc["2026-03-03", "count"] == 9500
+    assert daily.loc["2026-03-03", "steps"] == 9500
 
 
 def test_load_daily_df_unconfigured(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -303,7 +303,7 @@ toml = "*"
 type = "git"
 url = "https://github.com/ActivityWatch/aw-research.git"
 reference = "HEAD"
-resolved_reference = "947ea11f2e86bd2000497bb758195b0d8905a406"
+resolved_reference = "e74812e2a564777d30ef3ff8e7d9ba9db3a95738"
 
 [[package]]
 name = "babel"

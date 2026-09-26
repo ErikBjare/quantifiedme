@@ -206,8 +206,10 @@ def load_category_df(events: list[Event]) -> pd.DataFrame:
     df = pd.DataFrame(tss)
     df = df.replace(np.nan, 0)
     df["All_cols"] = df.sum(axis=1)
+    # df.index is a DatetimeIndex (from resample), so convert each Timestamp to a
+    # date for the lookup: a pd.Timestamp never equals a datetime.date key.
     df["All_events"] = [
-        sum((e.duration for e in events_by_date[d]), start=timedelta(0))
+        sum((e.duration for e in events_by_date.get(d.date(), [])), start=timedelta(0))
         for d in df.index
     ]
     return df

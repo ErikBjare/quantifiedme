@@ -126,6 +126,27 @@ def test_load_screentime():
     assert not load_category_df(events).empty
 
 
+def test_load_category_df_all_events():
+    day1 = datetime(2026, 1, 1, 10, tzinfo=timezone.utc)
+    day2 = datetime(2026, 1, 2, 10, tzinfo=timezone.utc)
+
+    def event(ts: datetime, hours: float, cat: str) -> Event:
+        return Event(
+            timestamp=ts,
+            duration=timedelta(hours=hours),
+            data={"$tags": [cat], "$category_hierarchy": [cat]},
+        )
+
+    events = [
+        event(day1, 1, "Work"),
+        event(day1 + timedelta(hours=2), 0.5, "Media"),
+        event(day2, 2, "Work"),
+    ]
+    df = load_category_df(events)
+    assert list(df["All_events"]) == [timedelta(hours=1.5), timedelta(hours=2)]
+    assert list(df["All_cols"]) == [1.5, 2]
+
+
 def test_load_toggl():
     pytest.skip("Broken")
 

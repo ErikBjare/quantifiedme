@@ -175,17 +175,109 @@ def _join_events(
     return events
 
 
-def classify(events: list[Event], personal: bool) -> list[Event]:
-    # Now load the classes from within the notebook, or from a CSV file.
-    config = load_config(use_example=not personal)
-    categories_path = Path(config["data"]["categories"]).expanduser()
-    # if categories_path is relative, it's relative to the config file
-    if not categories_path.is_absolute():
-        categories_path = (
-            _get_config_path(use_example=not personal).parent / categories_path
-        )
+# Config value for `[data] categories` that selects the aw-server category rules.
+SERVER_CATEGORIES = "server"
 
-    aw_research.classify._init_classes(filename=str(categories_path))
+# Regex that never matches, for categories whose rule type is "none" (pure parents).
+_NEVER_MATCH = "(?!)"
+
+
+def _category_tags(names: list[list[str]]) -> dict[tuple[str, ...], str]:
+    """Pick a unique tag for each category path.
+
+    aw_research identifies categories by a single name, while aw-server categories
+    are paths (e.g. ["Media", "Games"] and ["P", "Games"]). The tag is the leaf name
+    when that is unambiguous, otherwise the shortest path suffix that is unique,
+    joined with ">" (e.g. "Media>Games"). Surrounding double quotes are stripped
+    (the web UI allows names like '"Social"').
+    """
+    paths = [tuple(n.strip('"') for n in name) for name in names]
+    tags: dict[tuple[str, ...], str] = {}
+    used: set[str] = set()
+    # sorted, so tags don't depend on the order of rules in the server settings
+    for orig, path in sorted(zip(names, paths, strict=True), key=lambda x: x[1]):
+        tag = None
+        for n in range(1, len(path) + 1):
+            # compare the joined strings, since names may themselves contain ">"
+            cand = ">".join(path[-n:])
+            if cand not in used and sum(">".join(p[-n:]) == cand for p in paths) == 1:
+                tag = cand
+                break
+        if tag is None:
+            tag = ">".join(path)
+            i = 2
+            while f"{tag}#{i}" in used or tag in used:
+                tag = f"{'>'.join(path)}#{i}"
+                i += 1
+        used.add(tag)
+        tags[tuple(orig)] = tag
+    return tags
+
+
+def server_classes_to_aw_research(
+    classes: list[tuple[list[str], dict]],
+) -> list[tuple[str, str, str | None]]:
+    """Convert aw-server categories to aw_research's (regex, tag, parent_tag) tuples.
+
+    Missing parents are added, `ignore_case` becomes an inline `(?i)` flag, and
+    categories without a regex get a never-matching one so they still register as
+    parents.
+    """
+    rules = {tuple(name): rule for name, rule in classes}
+    for name in list(rules):
+        for n in range(1, len(name)):
+            rules.setdefault(name[:n], {"type": "none"})
+
+    tags = _category_tags([list(name) for name in rules])
+    result: list[tuple[str, str, str | None]] = []
+    for name, rule in rules.items():
+        if name == ("Uncategorized",):
+            continue
+        regex = rule.get("regex") if rule.get("type") == "regex" else None
+        if regex and rule.get("ignore_case"):
+            regex = f"(?i){regex}"
+        parent = tags[name[:-1]] if len(name) > 1 else None
+        result.append((regex or _NEVER_MATCH, tags[name], parent))
+    return result
+
+
+def load_server_classes(testing: bool = False) -> list[tuple[list[str], dict]]:
+    """Fetch the category rules configured in aw-server (the same ones the web UI uses)."""
+    awc = _get_aw_client(testing)
+    try:
+        classes = awc.get_setting("classes")
+    except Exception as e:
+        classes = None
+        logger.warning(f"Failed to get categories from aw-server: {e}")
+    if not classes:
+        from aw_client.classes import default_classes
+
+        logger.warning("No categories set in aw-server, using the default categories")
+        return default_classes
+    return [(c["name"], c["rule"]) for c in classes]
+
+
+def classify(events: list[Event], personal: bool) -> list[Event]:
+    """Categorize events, using the aw-server category rules by default.
+
+    `[data] categories` in the config selects the rules: "server" (or unset) uses
+    the categories configured in aw-server, anything else is a path to a
+    categories file in aw_research's TOML or CSV format.
+    """
+    config = load_config(use_example=not personal)
+    categories = config["data"].get("categories", SERVER_CATEGORIES)
+    if categories == SERVER_CATEGORIES:
+        classes = server_classes_to_aw_research(load_server_classes(not personal))
+        aw_research.classify._init_classes(new_classes=classes)
+    else:
+        categories_path = Path(categories).expanduser()
+        # if categories_path is relative, it's relative to the config file
+        if not categories_path.is_absolute():
+            categories_path = (
+                _get_config_path(use_example=not personal).parent / categories_path
+            )
+        aw_research.classify._init_classes(filename=str(categories_path))
+
     events = aw_research.classify.classify(events)
 
     return events

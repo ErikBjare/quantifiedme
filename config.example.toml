@@ -8,6 +8,11 @@ name = "john"
 date_offset_hours = 5
 
 [data]
+# Category rules: "server" (the default when unset) uses the categories configured
+# in aw-server, the same ones the ActivityWatch web UI uses. A path loads an
+# aw-research style TOML/CSV file instead. This example config (also the
+# fallback when no config file exists) uses the bundled example file, so tests
+# against the fakedata server are deterministic.
 categories = "./categories.example.toml"
 #habitbull = "~/Downloads/HabitBullData.csv"
 #location = "~/location"

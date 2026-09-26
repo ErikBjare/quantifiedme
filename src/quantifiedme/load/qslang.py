@@ -1,6 +1,7 @@
 import logging
 from datetime import timedelta
 
+import joblib
 import numpy as np
 import pandas as pd
 import pint
@@ -39,11 +40,20 @@ class DuplicateFilter:
         self.logger.removeFilter(self)
 
 
-@memory.cache
 def load_df(events: list[Event] | None = None) -> pd.DataFrame:
     if events is None:
         events = load_events()
     events = list(events)
+    # Keyed on a hash of the events rather than the events themselves: joblib
+    # stores the repr of arguments next to each cache entry.
+    date_offset_hours = load_config()["me"]["date_offset_hours"]
+    return _load_df(joblib.hash(events), date_offset_hours, events)
+
+
+@memory.cache(ignore=["events"])
+def _load_df(
+    events_hash: str, date_offset_hours: float, events: list[Event]
+) -> pd.DataFrame:
 
     with DuplicateFilter(logger):
         for e in events:
@@ -75,7 +85,7 @@ def load_df(events: list[Event] | None = None) -> pd.DataFrame:
             except pint.UndefinedUnitError as e:
                 logger.warning(e)
 
-    date_offset = timedelta(hours=load_config()["me"]["date_offset_hours"])
+    date_offset = timedelta(hours=date_offset_hours)
 
     df = pd.DataFrame(
         [

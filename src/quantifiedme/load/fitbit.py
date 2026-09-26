@@ -4,7 +4,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from ..cache import memory
+from ..cache import files_fingerprint, memory
 from ..config import load_config
 
 
@@ -58,7 +58,6 @@ def _load_heartrate_file(filepath):
     return df
 
 
-@memory.cache
 def load_heartrate_df() -> pd.DataFrame:
     # load heartrate data from Fitbit export
     filepath = load_config()["data"]["fitbit"]
@@ -67,9 +66,13 @@ def load_heartrate_df() -> pd.DataFrame:
     # filepath is the root folder of an unzipped Fitbit export
     # heartrate data is split into daily files in `Global Export Data/heart_rate-YYYY-MM-DD.json`
     # we need to combine all of these files into a single dataframe
+    files = sorted(filepath.glob("Global Export Data/heart_rate-*.json"))
+    # keyed on the files, so a new export isn't hidden by the cache
+    return _load_heartrate_df(files_fingerprint(files), files)
 
-    # get all the files in the folder
-    files = filepath.glob("Global Export Data/heart_rate-*.json")
+
+@memory.cache(ignore=["files"])
+def _load_heartrate_df(fingerprint: str, files: list[Path]) -> pd.DataFrame:
 
     # load each file into a dataframe
     # parallelize to speed up the process

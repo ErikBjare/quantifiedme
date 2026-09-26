@@ -119,6 +119,7 @@ jobs:
         path: aw-server-rust
 
     - name: Run aw-server-rust nightly
+      id: start_aw_server_rust
       shell: bash
       if: ${{ matrix.aw-server == 'aw-server-rust' && matrix.aw-version == 'master' }}
       run: |
@@ -184,7 +185,9 @@ jobs:
         path: notebooks/output
 
     - name: Echo logs
-      if: ${{ always() && matrix.aw-server == 'aw-server-rust' && matrix.aw-version == 'master' }}
+      # Only when the nightly actually started: if download/start failed, a
+      # missing-log error would just add noise on top of the real failure.
+      if: ${{ always() && steps.start_aw_server_rust.outcome == 'success' }}
       run: |
         # The nightly is a debug build, which defaults to the "testing" profile
         # (aw-server-rust#652). On a fresh runner that resolves to the isolated

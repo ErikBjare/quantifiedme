@@ -9,15 +9,21 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-from ..cache import memory
+from ..cache import files_fingerprint, memory
 from ..config import load_config
 
 
-@memory.cache
 def load_all_dfs() -> dict[str, pd.DataFrame]:
-    dfs = {}
     path = str(Path(load_config()["data"]["location"]).expanduser())
-    for filepath in glob.glob(path + "/*.json"):
+    files = sorted(glob.glob(path + "/*.json"))
+    # keyed on the files, so new or updated location data isn't hidden by the cache
+    return _load_all_dfs(files_fingerprint(Path(f) for f in files), files)
+
+
+@memory.cache(ignore=["files"])
+def _load_all_dfs(fingerprint: str, files: list[str]) -> dict[str, pd.DataFrame]:
+    dfs = {}
+    for filepath in files:
         name = Path(filepath).name.replace(".json", "")
         df = location_history_to_df(filepath)
         dfs[name] = df

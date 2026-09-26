@@ -178,6 +178,10 @@ def load_events_host(
     client-side (see ``derived.screentime``) so each event keeps its
     ``$hostname``. ``host`` (from :func:`discover_hosts`) is part of the cache
     key, so the cache is invalidated when a host's buckets change.
+
+    Results for a time range are cached indefinitely, so events synced after a
+    range was first loaded (e.g. a device that syncs late) only show up once
+    the cache is cleared (``load_screentime(cache=False)``).
     """
     query = (
         _queries.canonicalEvents(

@@ -1,6 +1,7 @@
 import logging
 from datetime import timedelta
 
+import joblib
 import numpy as np
 import pandas as pd
 import pint
@@ -39,11 +40,17 @@ class DuplicateFilter:
         self.logger.removeFilter(self)
 
 
-@memory.cache
 def load_df(events: list[Event] | None = None) -> pd.DataFrame:
     if events is None:
         events = load_events()
     events = list(events)
+    # Keyed on a hash of the events rather than the events themselves: joblib
+    # stores the repr of arguments next to each cache entry.
+    return _load_df(joblib.hash(events), events)
+
+
+@memory.cache(ignore=["events"])
+def _load_df(events_hash: str, events: list[Event]) -> pd.DataFrame:
 
     with DuplicateFilter(logger):
         for e in events:

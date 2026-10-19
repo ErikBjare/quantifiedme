@@ -67,8 +67,11 @@ def raw_to_hourly_df(raw: pd.DataFrame, tz: str = DEFAULT_TIMEZONE) -> pd.DataFr
 
     Returns one row per (device, local hour) that some sync covered, indexed
     by naive local ``timestamp`` (hour start), with ``puffs`` and ``duration``
-    columns. When several syncs cover an hour, the latest sync wins. Hours at
-    or after a sync's own time are dropped, since they hadn't happened yet.
+    columns. When several syncs cover an hour, the latest sync wins. The hour a
+    sync happened in is still in progress, so it and later hours are dropped.
+
+    ``tz`` is the phone's timezone at sync time (the app sets the device clock
+    to it, and day labels follow that clock).
     """
     if raw.empty:
         out = pd.DataFrame(columns=["device", "puffs", "duration"])
@@ -83,10 +86,11 @@ def raw_to_hourly_df(raw: pd.DataFrame, tz: str = DEFAULT_TIMEZONE) -> pd.DataFr
         raw["day_label"].map(DAY_OFFSETS), unit="D"
     )
     raw["timestamp"] = day + pd.to_timedelta(raw["hour_index"], unit="h")
-    raw["synced"] = synced_local
-    raw = raw[raw["timestamp"] <= raw["synced"].dt.floor("h")]
+    raw = raw[raw["timestamp"] < synced_local.dt.floor("h")]
 
-    # latest sync wins per (device, hour, metric)
+    # latest sync wins per (device, hour, metric); sort on UTC so a DST
+    # fall-back between two syncs can't reorder them
+    raw["synced"] = synced
     raw = raw.sort_values("synced").drop_duplicates(
         ["device", "timestamp", "metric"], keep="last"
     )
@@ -105,20 +109,22 @@ def hourly_to_daily_df(
 
     ``covered_hours`` counts hours with data for the day; ``puffs`` and
     ``duration`` are NaN unless all 24 hours were covered, so gaps between
-    syncs never read as abstinence. Totals are summed across devices.
+    syncs never read as abstinence. Totals are summed across devices, and a
+    day is only complete if every device with data that day covered all of it
+    (``covered_hours`` is the least-covered device's count).
     """
     if hourly.empty:
         out = pd.DataFrame(columns=DAILY_COLUMNS, dtype=float)
         out.index = pd.DatetimeIndex([], name="date")
         return out
 
-    # merge devices first so an hour counts once toward coverage
-    per_hour = hourly.groupby(level="timestamp")[["puffs", "duration"]].sum()
     dates = (
-        pd.DatetimeIndex(per_hour.index) - timedelta(hours=date_offset_hours)
+        pd.DatetimeIndex(hourly.index) - timedelta(hours=date_offset_hours)
     ).normalize()
-    daily = per_hour.groupby(dates).sum()
-    daily["covered_hours"] = per_hour.groupby(dates).size()
+    per_device = hourly.groupby([dates, hourly["device"]])
+    coverage = per_device.size().groupby(level=0).min()
+    daily = per_device[["puffs", "duration"]].sum().groupby(level=0).sum()
+    daily["covered_hours"] = coverage
     daily.loc[daily["covered_hours"] < 24, ["puffs", "duration"]] = float("nan")
     daily.index = pd.DatetimeIndex(daily.index, name="date")
     return daily[DAILY_COLUMNS].sort_index()
@@ -132,9 +138,17 @@ def load_hourly_df(
 
 
 def load_daily_df(
-    path: Path | str | None = None, date_offset_hours: float | None = None
+    path: Path | str | None = None,
+    date_offset_hours: float | None = None,
+    tz: str | None = None,
 ) -> pd.DataFrame:
-    """Load daily vape usage; days without full sync coverage are NaN."""
+    """Load daily vape usage; days without full sync coverage are NaN.
+
+    ``tz`` defaults to ``config["me"]["timezone"]``, else Europe/Stockholm.
+    """
+    me = load_config().get("me", {}) if date_offset_hours is None or tz is None else {}
     if date_offset_hours is None:
-        date_offset_hours = load_config().get("me", {}).get("date_offset_hours", 0)
-    return hourly_to_daily_df(load_hourly_df(path), date_offset_hours)
+        date_offset_hours = me.get("date_offset_hours", 0)
+    if tz is None:
+        tz = me.get("timezone", DEFAULT_TIMEZONE)
+    return hourly_to_daily_df(load_hourly_df(path, tz=tz), date_offset_hours)

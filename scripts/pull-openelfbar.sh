@@ -11,13 +11,16 @@ set -euo pipefail
 
 PKG=org.youngsoftware.openelfbar
 DEST=${1:-$HOME/annex/Logs/OpenElfbar}
-STAMP=$(date +%Y-%m-%dT%H%M)
+STAMP=$(date +%Y-%m-%dT%H%M%S)
 OUT="$DEST/openelfbar-$STAMP.db"
+[[ -e "$OUT" ]] && { echo "error: $OUT already exists" >&2; exit 1; }
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
 mkdir -p "$DEST"
 
+# stop the app so the DB and its WAL can't change mid-copy (aborts a sync in progress)
+adb shell am force-stop "$PKG"
 # tar the whole dir so an un-checkpointed -wal file comes along
 adb exec-out run-as "$PKG" tar -cf - files/SQLite | tar -xf - -C "$TMP"
 SRC="$TMP/files/SQLite/openelfbar.db"

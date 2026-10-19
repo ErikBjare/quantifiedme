@@ -20,6 +20,7 @@ categories = "./categories.example.toml"
 #whoop = "~/Downloads/whoop-export"  # CSV/GDPR export dir; the live Whoop API (see load/whoop_api.py) needs no config entry and takes precedence once authorized
 #zlantar = "~/Downloads/zlantar-export.zip"  # personal finance export (.zip, .json, or dir)
 #hevy = "~/Downloads/workout_data.csv"  # Hevy strength-training CSV export
+#openelfbar = "~/annex/Logs/OpenElfbar/openelfbar-latest.db"  # OpenElfbar app DB (scripts/pull-openelfbar.sh)
 
 # Daily steps from Home Assistant long-term statistics (companion-app step sensors)
 #[data.steps]

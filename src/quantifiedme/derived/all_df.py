@@ -18,7 +18,9 @@ from aw_core import Event
 from ..config import load_config
 from ..load.aw_input import load_daily_df as load_input_daily_df
 from ..load.home_assistant import load_daily_df as load_ha_daily_df
-from ..load.home_assistant import load_daily_df_from_statistics as load_ha_statistics_daily_df
+from ..load.home_assistant import (
+    load_daily_df_from_statistics as load_ha_statistics_daily_df,
+)
 from ..load.location import load_daily_df as load_location_daily_df
 from ..load.qslang import load_daily_df as load_drugs_df
 from ..load.whoop import load_cycles_df as load_whoop_cycles_df
@@ -40,6 +42,7 @@ Sources = Literal[
     "cycles",
     "input",
     "home_assistant",
+    "vape",
 ]
 ExerciseSources = Literal["workouts", "hevy", "steps"]
 
@@ -145,6 +148,18 @@ def load_all_df(
         else:
             df = join(df, df_hevy.add_prefix("hevy:"))
 
+    if "vape" not in ignore:
+        print("\n# Adding nicotine vaping (OpenElfbar)")
+        from ..load.openelfbar import load_daily_df as load_vape_daily_df
+
+        try:
+            df_vape = load_vape_daily_df()
+        except (FileNotFoundError, KeyError) as e:
+            # Optional source: KeyError when `data.openelfbar` isn't configured
+            logger.warning(f"Skipping vape source: {e}")
+        else:
+            df = join(df, df_vape.add_prefix("vape:"))
+
     if "steps" not in ignore:
         print("\n# Adding steps (Home Assistant long-term statistics)")
         from ..load.steps import load_daily_df as load_steps_daily_df
@@ -210,9 +225,13 @@ def load_all_df(
                             # SQLite fills in only days not covered by the export.
                             df_ha = df_ha.combine_first(df_ha_recent)
                         except Exception as e:
-                            logger.warning(f"SQLite supplement failed, using statistics export only: {e}")
+                            logger.warning(
+                                f"SQLite supplement failed, using statistics export only: {e}"
+                            )
                 except (FileNotFoundError, KeyError) as e:
-                    logger.warning(f"Statistics export unavailable ({e}); falling back to SQLite")
+                    logger.warning(
+                        f"Statistics export unavailable ({e}); falling back to SQLite"
+                    )
                     df_ha = load_ha_daily_df()
             else:
                 _date_offset_hours = config.get("me", {}).get("date_offset_hours", 0)

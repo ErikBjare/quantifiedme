@@ -52,6 +52,12 @@ def _write_db(
     conn.close()
 
 
+@pytest.fixture(autouse=True)
+def _no_user_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    # keep tests independent of the user's timezone/day-offset config
+    monkeypatch.setattr("quantifiedme.load.openelfbar.load_config", lambda: {})
+
+
 @pytest.fixture
 def db(tmp_path: Path) -> Path:
     path = tmp_path / "openelfbar.db"
@@ -155,3 +161,15 @@ def test_phone_timezone(db: Path) -> None:
     # 2026-03-04 20:10 UTC is already 03-05 in Tokyo, shifting every day label
     daily = load_daily_df(db, date_offset_hours=0, tz="Asia/Tokyo")
     assert daily.loc["2026-03-04", "puffs"] == 4
+
+
+def test_default_timezone_from_config(
+    db: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "quantifiedme.load.openelfbar.load_config",
+        lambda: {"me": {"date_offset_hours": 0, "timezone": "Asia/Tokyo"}},
+    )
+    assert load_daily_df(db).equals(
+        load_daily_df(db, date_offset_hours=0, tz="Asia/Tokyo")
+    )
